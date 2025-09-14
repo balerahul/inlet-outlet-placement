@@ -1,0 +1,45 @@
+# Test configuration for new exclusion methods
+
+grid:
+  width: 10
+  height: 8
+
+entities:
+  # Test Y-list exclusion (exclude specific rows)
+  vinlet:
+    count: 3
+    intra_radius: 1.0
+    color: "orange"
+    allowed_region:
+      exclude_y_list: [1, 2, 7, 8]  # Only use middle rows 3-6
+
+  # Test X-list exclusion (exclude specific columns)  
+  voutlet:
+    count: 3
+    intra_radius: 1.0
+    color: "cyan"
+    allowed_region:
+      exclude_x_list: [1, 5, 10]    # Avoid edges and center column
+
+  # Test X-range exclusion
+  acinlet:
+    count: 6
+    intra_radius: 0.8
+    color: "red"
+    allowed_region:
+      exclude_x_range: [4, 7]       # Avoid center area
+      
+  # Test combined exclusions
+  acoutlet:
+    count: 4
+    intra_radius: 1.0
+    color: "blue"
+    allowed_region:
+      exclude_y_list: [4, 5]        # Avoid center rows
+      exclude_x_list: [2, 9]        # Avoid specific columns
+
+separation:
+  cross_entity_radius: 1.0
+
+optimization:
+  random_seed: 42

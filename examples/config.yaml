@@ -1,0 +1,94 @@
+# Stratified Placement Configuration
+# This file configures the placement engine parameters and constraints
+
+grid:
+  width: 12
+  height: 8
+
+stratification:
+  num_bands: 4  # Number of horizontal bands for stratification
+  anisotropy_y: 1  # Y-axis weighting factor (>1 emphasizes vertical separation)
+
+entities:
+  vinlet:
+    count: 4
+    intra_radius: 1
+    color: "orange"
+    # Allowed region defined as rectangular bounds
+    allowed_region:
+      x_min: 2
+      x_max: 11
+      y_min: 3
+      y_max: 6
+  
+  voutlet:
+    count: 4
+    intra_radius: 1
+    color: "cyan"
+    # Excluded region (complement of supply cells)
+    allowed_region:
+      exclude_y_range: [3, 6]  # Exclude rows 3-6
+  
+  acinlet:
+    count: 8
+    intra_radius: 0.5
+    color: "red"
+    allowed_region:
+      x_min: 2
+      x_max: 11
+      y_min: 3
+      y_max: 6
+  
+  acoutlet:
+    count: 8
+    intra_radius: 1.0
+    color: "blue"
+    allowed_region:
+      exclude_y_range: [3, 6]
+
+separation:
+  cross_entity_radius: 1.0  # Minimum distance between different entity types
+
+optimization:
+  max_iterations: 100
+  random_seed: 42  # Set to null or "random" for different results each run
+  # random_seed: null  # Uncomment this line for truly random results
+
+visualization:
+  figure_size: [16, 12]
+  show_separation_circles: true
+  show_band_boundaries: true
+  save_plots: false
+  output_directory: "plots"
+
+# Keep-out zones (optional)
+keep_out_zones: []
+  # Example:
+  # - x_min: 5
+  #   x_max: 7
+  #   y_min: 2
+  #   y_max: 4
+  #   description: "Equipment area"
+
+# Advanced constraints (optional)
+constraints:
+  # Minimum distance from grid boundaries
+  boundary_clearance: 0.5
+  
+  # Symmetry preferences (optional)
+  prefer_symmetry: false
+  symmetry_axis: "vertical"  # "vertical", "horizontal", or "both"
+  
+  # Alignment preferences (optional)
+  grid_alignment: false
+  preferred_rows: []  # List of preferred Y coordinates
+  
+  # Priority zones with weighted quotas (optional)
+  priority_zones: []
+    # Example:
+    # - x_min: 3
+    #   x_max: 9
+    #   y_min: 4
+    #   y_max: 5
+    #   weight: 1.5
+    #   description: "High priority airflow zone"

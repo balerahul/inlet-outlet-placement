@@ -145,3 +145,13 @@ logs/
 .*.swp
 .*.swo
 
+# Project-specific generated files
+output/
+temp_config_trial_*.yaml
+placement_*.csv
+placement_*.png
+*_plot.png
+
+# Claude Code directory
+.claude/
+

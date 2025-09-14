@@ -1,0 +1,75 @@
+# Complex Zone Configuration Example
+# Demonstrates flexible exclusion methods for real-world scenarios
+
+grid:
+  width: 15
+  height: 12
+
+stratification:
+  num_bands: 4
+  anisotropy_y: 1.2
+
+entities:
+  # Main supply inlets - avoid structural columns and edges
+  vinlet:
+    count: 6
+    intra_radius: 2.0
+    color: "orange"
+    allowed_region:
+      # Exclude structural columns at specific locations
+      exclude_x_list: [3, 8, 13]     # Structural column locations
+      exclude_y_list: [2, 11]        # Edge rows with obstacles
+      # Only use center area for main supply
+      x_min: 4
+      x_max: 12
+      y_min: 5
+      y_max: 9
+
+  # Return air outlets - perimeter only, avoiding equipment areas  
+  voutlet:
+    count: 8
+    intra_radius: 1.5
+    color: "cyan"
+    allowed_region:
+      # Use perimeter but avoid specific problem areas
+      exclude_x_range: [6, 10]       # Equipment area in center
+      exclude_y_list: [3, 4, 9, 10]  # Maintenance access rows
+
+  # AC inlets - distributed but avoiding main ductwork paths
+  acinlet:
+    count: 12
+    intra_radius: 1.0
+    color: "red"
+    allowed_region:
+      # Complex exclusion pattern for ductwork avoidance
+      exclude_x_list: [1, 5, 9, 15]  # Vertical ductwork columns
+      exclude_y_list: [6, 7]         # Horizontal ductwork rows
+
+  # AC outlets - fill remaining space strategically
+  acoutlet:
+    count: 10
+    intra_radius: 1.2
+    color: "blue"
+    allowed_region:
+      # Avoid high-traffic areas and equipment
+      exclude_x_range: [7, 9]        # Central corridor
+      exclude_y_list: [1, 12]        # Entry/exit rows
+      exclude_x_list: [2, 14]        # Side equipment areas
+
+separation:
+  cross_entity_radius: 1.5  # Larger separation for complex layout
+
+optimization:
+  max_iterations: 200        # More iterations for complex constraints
+  random_seed: null          # Generate different solutions
+
+visualization:
+  figure_size: [18, 14]
+  show_separation_circles: true
+  show_band_boundaries: true
+
+# This configuration demonstrates:
+# 1. Mixed exclusion methods (lists, ranges, and bounds)
+# 2. Real-world constraints (columns, equipment, ductwork)
+# 3. Hierarchical placement (main systems first, AC systems fill)
+# 4. Strategic separation for complex layouts
