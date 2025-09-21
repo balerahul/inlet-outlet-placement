@@ -9,7 +9,7 @@ import yaml
 from typing import Dict, List, Set, Any, Optional
 from pathlib import Path
 
-from stratified_placement import (
+from .stratified_placement import (
     GridCell, Entity, GridRegion, EntityType, PlacementEngine
 )
 

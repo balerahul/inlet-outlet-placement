@@ -14,8 +14,8 @@ from dataclasses import dataclass, asdict
 import time
 from datetime import datetime
 
-from stratified_placement import PlacementResult, EntityType, GridCell, GridRegion
-from placement_metrics import PlacementMetrics
+from .stratified_placement import PlacementResult, EntityType, GridCell, GridRegion
+from .placement_metrics import PlacementMetrics
 
 
 @dataclass 

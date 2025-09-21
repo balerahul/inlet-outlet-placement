@@ -11,11 +11,11 @@ import numpy as np
 from typing import Dict, List, Any, Optional, Tuple
 from collections import Counter
 
-from stratified_placement import (
+from .stratified_placement import (
     GridCell, Entity, GridRegion, Stratification, PlacementResult,
     EntityType, euclidean_distance
 )
-from placement_metrics import PlacementMetrics
+from .placement_metrics import PlacementMetrics
 
 
 class PlacementVisualizer:

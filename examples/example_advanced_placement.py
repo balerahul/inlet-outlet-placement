@@ -9,16 +9,16 @@ comprehensive metrics analysis, and enhanced visualization.
 import sys
 from pathlib import Path
 
-# Add current directory to path for imports
-sys.path.append(str(Path(__file__).parent))
+# Add parent directory to path for imports
+sys.path.append(str(Path(__file__).parent.parent))
 
-from stratified_placement import (
+from src.stratified_placement import (
     GridRegion, Entity, EntityType, PlacementEngine, GridCell
 )
-from placement_metrics import PlacementMetrics, print_placement_report
-from visualization import PlacementVisualizer
-from config_loader import (
-    create_placement_engine_from_config, 
+from src.placement_metrics import PlacementMetrics, print_placement_report
+from src.visualization import PlacementVisualizer
+from src.config_loader import (
+    create_placement_engine_from_config,
     get_visualization_config,
     print_config_summary
 )

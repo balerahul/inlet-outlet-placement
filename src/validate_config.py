@@ -14,8 +14,8 @@ from typing import Dict, List, Any, Tuple
 # Add current directory to path for imports
 sys.path.append(str(Path(__file__).parent))
 
-from config_loader import load_config, validate_config, ConfigurationError
-from stratified_placement import EntityType, GridRegion, GridCell
+from .config_loader import load_config, validate_config, ConfigurationError
+from .stratified_placement import EntityType, GridRegion, GridCell
 
 
 class ConfigValidator:

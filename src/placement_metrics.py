@@ -10,8 +10,8 @@ from typing import Dict, List, Tuple, Set, Any
 from collections import defaultdict, Counter
 import statistics
 
-from stratified_placement import (
-    GridCell, Entity, GridRegion, Stratification, PlacementResult, 
+from .stratified_placement import (
+    GridCell, Entity, GridRegion, Stratification, PlacementResult,
     EntityType, euclidean_distance
 )
 

@@ -41,8 +41,8 @@ def run_integration_test():
     print("=" * 50)
     
     try:
-        from config_loader import create_placement_engine_from_config
-        from placement_metrics import PlacementMetrics, print_placement_report
+        from src.config_loader import create_placement_engine_from_config
+        from src.placement_metrics import PlacementMetrics, print_placement_report
         
         # Create and run placement engine
         print("Creating placement engine from config...")

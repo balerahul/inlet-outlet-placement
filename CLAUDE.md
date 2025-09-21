@@ -27,16 +27,21 @@ The system implements a sophisticated **three-phase stratified placement algorit
 
 ## Key Components
 
-### Core System Files
-- `stratified_placement.py`: Main placement engine with three-phase algorithm
-- `placement_metrics.py`: Comprehensive quality analysis and reporting
-- `visualization.py`: Advanced multi-panel visualization system
-- `config_loader.py`: YAML configuration loading and validation
+### Core System Files (src/ directory)
+- `src/stratified_placement.py`: Main placement engine with three-phase algorithm
+- `src/placement_metrics.py`: Comprehensive quality analysis and reporting
+- `src/visualization.py`: Advanced multi-panel visualization system
+- `src/config_loader.py`: YAML configuration loading and validation
+- `src/placement_exporter.py`: Export system for various output formats
+- `src/validate_config.py`: Configuration validation utilities
 - `config.yaml`: Configuration file for all system parameters
 
-### Legacy and Examples
-- `generate_random_individual.py`: Original simple implementation
-- `example_advanced_placement.py`: Comprehensive demo of new system
+### Main Entry Point
+- `main.py`: Primary user interface and command-line entry point
+
+### Examples and Legacy (examples/ directory)
+- `examples/generate_random_individual.py`: Original simple implementation
+- `examples/example_advanced_placement.py`: Comprehensive demo of new system
 - `placement_plan.md`: Detailed methodology documentation
 
 ### Testing
@@ -49,44 +54,47 @@ The system implements a sophisticated **three-phase stratified placement algorit
 
 ```bash
 # Main runner script (RECOMMENDED) - Basic placement
-python3 run_placement.py
+python3 main.py
 
 # With detailed quality analysis
-python3 run_placement.py --detailed
+python3 main.py --detailed
 
 # With full visualization (may pause for plot display)
-python3 run_placement.py --visualize
+python3 main.py --visualize
 
 # Run multiple random trials for comparison
-python3 run_placement.py --trials 5
+python3 main.py --trials 5
 
 # Use custom configuration file
-python3 run_placement.py --config custom.yaml
+python3 main.py --config custom.yaml
 ```
 
 ### **📋 Configuration Management**
 
 ```bash
 # View current configuration
-python3 -c "from config_loader import print_config_summary; print_config_summary()"
+python3 -c "from src.config_loader import print_config_summary; print_config_summary()"
 
 # Validate configuration
-python3 config_loader.py
+python3 -c "from src.validate_config import ConfigValidator; validator = ConfigValidator(); validator.validate_config_file('config.yaml')"
 ```
 
 ### **🔬 Alternative Entry Points**
 
 ```bash
 # Full demo with comprehensive analysis (may pause for plots)
-python3 example_advanced_placement.py
+python3 examples/example_advanced_placement.py
 
 # Quick programmatic usage
 python3 -c "
-from config_loader import create_placement_engine_from_config
+from src.config_loader import create_placement_engine_from_config
 engine = create_placement_engine_from_config()
 result = engine.place_all_entities()
 print('Placed:', sum(len(p) for p in result.placements.values()), 'entities')
 "
+
+# Original legacy implementation
+python3 examples/generate_random_individual.py
 ```
 
 ### Running Tests
@@ -101,7 +109,7 @@ python3 -m pytest tests/test_placement_engine.py
 
 ### Running Original Implementation
 ```bash
-python3 generate_random_individual.py
+python3 examples/generate_random_individual.py
 ```
 
 ## Dependencies
