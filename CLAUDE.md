@@ -179,6 +179,77 @@ python3 run_placement.py --trials 10
 - Advanced multi-panel visualization system
 - Extensive test coverage with integration validation
 
+## Genetic Algorithm Extension (ga_ext/)
+
+### Overview
+**NEW (2025-10-01)**: An optional genetic algorithm extension that evolves existing placement layouts through band-aware crossover and mutation with **external fitness evaluation**.
+
+**Status**: Phases 1-2 complete (33% of roadmap) - Foundation and Operations implemented.
+
+### Key Features
+- ✅ **Non-invasive**: Zero modifications to existing `src/` code
+- ✅ **External fitness**: Accepts pre-selected parents, performs only generation operations
+- ✅ **Band-aware**: All operations respect stratified structure and quotas
+- ✅ **Opt-in**: Separate CLI tool, existing `main.py` behavior unchanged
+
+### Directory Structure
+```
+ga_ext/
+  __init__.py              # Package initialization
+  ga_ext_config.yaml       # GA configuration
+  data_models.py           # Individual, ParentManifest, LineageRecord
+  io_utils.py              # CSV I/O, manifest parsing
+  band_utils.py            # Band partitioning utilities
+  crossover.py             # 3 crossover strategies
+  mutation.py              # 3 mutation operators
+  [TODO] engine_interface.py
+  [TODO] repair.py
+  [TODO] cli.py
+
+tests/test_ga_ext/
+  test_io_utils.py         # 18 tests (all passing)
+  test_operations.py       # 14 tests (all passing)
+
+docs/
+  methodology_band_aware_partitioning.md
+  methodology_crossover_operators.md
+  methodology_mutation_operators.md
+```
+
+### Running GA Extension Tests
+```bash
+# From project root
+PYTHONPATH=. python3 tests/test_ga_ext/test_io_utils.py
+PYTHONPATH=. python3 tests/test_ga_ext/test_operations.py
+```
+
+### Implemented Features (Phases 1-2)
+
+**Crossover Strategies**:
+- Bandwise: Inherit (entity, band) units from parents (safest)
+- Block-2D: Inherit spatial blocks independently (exploratory)
+- Entity-wise: Inherit entire entity types (most aggressive)
+
+**Mutation Operators**:
+- Within-band swap: Exchange positions in same band (conservative)
+- Band-local jitter: Move to nearby free cell (balanced)
+- Micro-reseed: Re-place fraction randomly (disruptive)
+
+### Remaining Work (Phases 3-6)
+See `SESSION_CHECKPOINT.md` and `GA_IMPLEMENTATION_ROADMAP.md` for:
+- Phase 3: Repair & Refinement (conflict resolution, quota adjustment)
+- Phase 4: CLI & Orchestration (variant/offspring modes)
+- Phase 5: Validation & Testing (edge cases, integration)
+- Phase 6: Documentation & Examples (user guide, workflows)
+
+### Quick References
+- **Implementation Plan**: `GA_IMPLEMENTATION_ROADMAP.md`
+- **Current Status**: `SESSION_CHECKPOINT.md`
+- **Original Design**: `ga_integration_plan_for_stratified_placement_system_implementation_guide.md`
+- **Methodology Docs**: `docs/methodology_*.md`
+
+---
+
 ## Quality Metrics
 
 The system provides detailed analysis including:
