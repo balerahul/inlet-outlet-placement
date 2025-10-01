@@ -1,0 +1,114 @@
+# GA Extension Configuration
+# External fitness mode - no internal selection or scoring
+
+# ============================================================================
+# Generation Parameters
+# ============================================================================
+
+# Crossover settings
+crossover_rate: 0.7  # Probability of crossover (vs. direct copy)
+crossover_strategy: "bandwise"  # Options: "bandwise", "block_2d"
+
+# For block_2d crossover (optional)
+block_2d:
+  blocks_x: 4  # Number of horizontal blocks
+  blocks_y: 4  # Number of vertical blocks
+
+# Mutation settings
+mutation_rate: 0.3  # Per-individual mutation probability
+
+mutation:
+  operators:
+    within_band_swap: 0.4      # Swap two entities in same band
+    band_local_jitter: 0.4     # Move to nearby free cell
+    micro_reseed: 0.2          # Re-place small fraction
+  max_ops_per_individual: 3    # Max mutation operations per child
+  micro_reseed_fraction: 0.1   # 10% of entities for micro_reseed
+
+# ============================================================================
+# Repair & Refinement Parameters
+# ============================================================================
+
+repair_max_iters: 20           # Max iterations for separation refinement
+
+# Anisotropic distance weight (from existing config)
+wy: 2.0                        # Y-axis weight for separation (emphasizes vertical)
+
+# Repair behavior
+repair:
+  allow_radius_reduction: true  # Allow controlled radius reduction in dense areas
+  max_radius_reduction: 0.2     # Max 20% reduction
+  allow_quota_borrow: true      # Allow controlled quota violations
+  max_quota_borrow_percent: 0.1 # Max 10% quota borrow per band
+
+# ============================================================================
+# Diversity Maintenance
+# ============================================================================
+
+immigrants: 2  # Number of fresh random layouts per generation
+
+# ============================================================================
+# Reproducibility
+# ============================================================================
+
+random_seed: null  # null = random each run, integer = fixed seed for reproducibility
+# Examples:
+#   random_seed: 42      # Fixed, reproducible results
+#   random_seed: null    # Random seed each run
+#   random_seed: "random"  # Same as null
+
+# ============================================================================
+# Output Configuration
+# ============================================================================
+
+output_root: "ga_ext"  # Root folder for all GA outputs
+
+# Naming conventions
+naming:
+  child_prefix: "child"           # child_000.csv, child_001.csv, ...
+  immigrant_prefix: "immigrant"   # immigrant_000.csv, immigrant_001.csv, ...
+  variant_prefix: "variant"       # variant_000.csv, variant_001.csv, ...
+  generation_format: "gen_{:03d}" # gen_000, gen_001, ...
+
+# Logging
+logging:
+  save_lineage: true              # Save lineage_log.csv
+  save_metadata: true             # Save sidecar metadata files
+  verbose: true                   # Print progress messages
+
+# ============================================================================
+# Parent Selection (Offspring Mode)
+# ============================================================================
+
+# When manifest provides weights, use weighted random selection
+# Otherwise, uniform random
+parent_selection:
+  use_manifest_weights: true      # Use weights from manifest if available
+  uniform_fallback: true          # Fall back to uniform if no weights
+
+# ============================================================================
+# Safety & Validation
+# ============================================================================
+
+validation:
+  check_no_overlaps: true         # Validate no cell overlaps
+  check_allowed_regions: true     # Validate all entities in allowed regions
+  check_quotas: true              # Validate quotas met (or controlled borrow)
+  fail_on_invalid: true           # Fail if validation fails (vs. warn)
+
+# Overwrite behavior
+overwrite: false  # Fail if output directory exists (unless --overwrite flag)
+
+# ============================================================================
+# Performance
+# ============================================================================
+
+# Parallelism (future enhancement)
+parallel:
+  enabled: false           # Not implemented yet
+  num_workers: 4           # Number of parallel workers
+
+# Caching
+cache:
+  enabled: true            # Cache band calculations and neighbor lists
+  max_cache_size_mb: 100   # Max cache size in MB
