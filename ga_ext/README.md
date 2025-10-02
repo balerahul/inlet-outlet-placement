@@ -43,17 +43,17 @@ Create a YAML file (e.g., `my_variant_run.yaml`) to configure the GA:
 mode: variant
 
 input:
-  parent_csv: output/placement_final.csv
+  parent: output/placement_final.csv
 
 output:
-  output_root: ga_output/variants
+  root: ga_output/variants
   overwrite: true  # Set to false to prevent overwriting existing files
 
-ga_config:
-  config_path: ga_ext/ga_ext_config.yaml
+ga_config: ga_ext/ga_ext_config.yaml
+placement_config: config.yaml
 
 generation:
-  num_variants: 10  # Generate 10 mutated variants
+  variants: 10  # Generate 10 mutated variants
 ```
 
 ### Step 3: Run the GA
@@ -114,16 +114,15 @@ input:
   # parents_dir: ga_output/generation_001/
 
 output:
-  output_root: ga_output/generation_002
+  root: ga_output/generation_002
   overwrite: true
 
-ga_config:
-  config_path: ga_ext/ga_ext_config.yaml
+ga_config: ga_ext/ga_ext_config.yaml
+placement_config: config.yaml
 
 generation:
-  num_children: 20       # Generate 20 children via crossover + mutation
-  num_immigrants: 5      # Add 5 fresh random layouts for diversity
-  parent_selection: weighted  # 'weighted' or 'uniform'
+  children: 20       # Generate 20 children via crossover + mutation
+  immigrants: 5      # Add 5 fresh random layouts for diversity
 ```
 
 Run it:
@@ -168,11 +167,11 @@ Continue the cycle:
 mode: variant  # or 'offspring'
 
 output:
-  output_root: path/to/output    # Where to save results
+  root: path/to/output           # Where to save results
   overwrite: false               # Allow overwriting existing files
 
-ga_config:
-  config_path: ga_ext/ga_ext_config.yaml  # Path to GA parameters
+ga_config: ga_ext/ga_ext_config.yaml  # Path to GA parameters
+placement_config: config.yaml         # Path to placement parameters (optional)
 ```
 
 **Variant Mode**:
@@ -181,10 +180,10 @@ ga_config:
 mode: variant
 
 input:
-  parent_csv: path/to/parent.csv  # Single parent layout
+  parent: path/to/parent.csv  # Single parent layout
 
 generation:
-  num_variants: 10  # Number of variants to generate
+  variants: 10  # Number of variants to generate
 ```
 
 **Offspring Mode**:
@@ -199,9 +198,8 @@ input:
   parents_dir: path/to/parents/     # Directory of CSVs (equal weights)
 
 generation:
-  num_children: 20                  # Children via crossover + mutation
-  num_immigrants: 5                 # Fresh random layouts (optional)
-  parent_selection: weighted        # 'weighted' or 'uniform'
+  children: 20                  # Children via crossover + mutation
+  immigrants: 5                 # Fresh random layouts (optional)
 ```
 
 ### GA Configuration (ga_ext_config.yaml)
@@ -490,13 +488,13 @@ python3 main.py
 cat > explore.yaml <<EOF
 mode: variant
 input:
-  parent_csv: output/placement_final.csv
+  parent: output/placement_final.csv
 output:
-  output_root: warehouse/gen_000
+  root: warehouse/gen_000
+  overwrite: true
 generation:
-  num_variants: 20
-ga_config:
-  config_path: ga_ext/ga_ext_config.yaml
+  variants: 20
+ga_config: ga_ext/ga_ext_config.yaml
 EOF
 
 python3 ga_cli.py explore.yaml
@@ -513,13 +511,12 @@ mode: offspring
 input:
   parents_manifest: parents.csv
 output:
-  output_root: warehouse/gen_001
+  root: warehouse/gen_001
+  overwrite: true
 generation:
-  num_children: 30
-  num_immigrants: 5
-  parent_selection: weighted
-ga_config:
-  config_path: ga_ext/ga_ext_config.yaml
+  children: 30
+  immigrants: 5
+ga_config: ga_ext/ga_ext_config.yaml
 EOF
 
 python3 ga_cli.py evolve.yaml

@@ -14,33 +14,36 @@ mode: "variant"
 
 # Input: Single parent layout
 input:
-  parent_csv: "output/placement_final.csv"
+  parent: "output/placement_final.csv"
   # The parent CSV must exist and contain valid placement data
   # Generate one with: python3 main.py
 
 # Output configuration
 output:
-  output_root: "ga_output/variants"
+  root: "ga_output/variants"
   # If this directory exists, set overwrite to true
   overwrite: true
 
 # Generation parameters
 generation:
   # Number of variants to generate from the parent
-  num_variants: 10
+  variants: 10
   # Each variant will have mutation applied (no crossover)
 
-# GA configuration reference
-ga_config:
-  config_path: "ga_ext/ga_ext_config.yaml"
-  # This file controls mutation probabilities, crossover strategy, repair params
+# GA configuration file path (optional, defaults shown)
+ga_config: "ga_ext/ga_ext_config.yaml"
+placement_config: "config.yaml"
+
+# Random seed for reproducibility (optional)
+# Set to integer for reproducible results, null for random
+random_seed: null
 
 # ============================================================================
 # Expected Output
 # ============================================================================
 # After running, you will find in ga_output/variants/:
 #   - variant_000.csv, variant_001.csv, ... variant_009.csv
-#   - lineage.csv (provenance information for all variants)
+#   - lineage_log.csv (provenance information for all variants)
 #
 # Next steps:
 #   1. Evaluate all variants with your external evaluator (CFD, ML, etc.)

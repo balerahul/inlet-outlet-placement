@@ -1,0 +1,418 @@
+# ============================================================================
+# GA Extension - Comprehensive Configuration Example
+# ============================================================================
+# This file demonstrates ALL available configuration options for both
+# variant and offspring modes. Use this as a reference when creating your
+# own run configurations.
+#
+# Quick Start:
+#   1. Copy this file and rename it (e.g., my_run.yaml)
+#   2. Choose mode: variant or offspring
+#   3. Comment out the mode you're not using
+#   4. Adjust parameters for your needs
+#   5. Run: python3 ga_cli.py my_run.yaml
+#
+# ============================================================================
+
+
+# ============================================================================
+# MODE SELECTION (Required)
+# ============================================================================
+# Choose ONE mode: "variant" or "offspring"
+#
+# - variant:   Generate mutated versions of a single parent (mutation only)
+# - offspring: Combine multiple parents via crossover + mutation
+#
+mode: "variant"  # Change to "offspring" for multi-parent mode
+
+
+# ============================================================================
+# VARIANT MODE CONFIGURATION
+# ============================================================================
+# Use this section if mode is "variant"
+# Comment out or remove if using offspring mode
+
+input:
+  # Path to single parent CSV file
+  # Generate one with: python3 main.py
+  parent: "output/placement_final.csv"
+
+output:
+  # Directory where variants will be saved
+  root: "ga_output/variants"
+
+  # Whether to overwrite existing output directory
+  # - true:  Overwrite existing files without error
+  # - false: Raise error if directory already exists
+  overwrite: true
+
+generation:
+  # Number of variants to generate from the single parent
+  # Each variant will have mutation applied (no crossover)
+  # Recommended: 10-50 for initial exploration
+  variants: 10
+
+
+# ============================================================================
+# OFFSPRING MODE CONFIGURATION
+# ============================================================================
+# Use this section if mode is "offspring"
+# Comment out or remove if using variant mode
+#
+# Uncomment the section below to use offspring mode:
+
+# mode: "offspring"
+#
+# input:
+#   # OPTION 1: Parent manifest file (recommended for weighted selection)
+#   # This is a CSV file with columns: csv_path, score, weight
+#   # Example:
+#   #   csv_path,score,weight
+#   #   ga_output/variants/variant_003.csv,0.89,1.0
+#   #   ga_output/variants/variant_007.csv,0.92,2.0
+#   #   output/placement_final.csv,0.85,0.5
+#   parents_manifest: "parents.csv"
+#
+#   # OPTION 2: Parent directory (all CSVs will be used with equal weight)
+#   # Uncomment this and comment out parents_manifest to use
+#   # parents_dir: "ga_output/variants"
+#
+#   # NOTE: Specify EITHER parents_manifest OR parents_dir, not both
+#
+# output:
+#   # Directory where children and immigrants will be saved
+#   root: "ga_output/generation_001"
+#
+#   # Whether to overwrite existing output directory
+#   overwrite: true
+#
+# generation:
+#   # Number of children to generate via crossover + mutation
+#   # Recommended: 20-100 per generation
+#   children: 20
+#
+#   # Number of fresh random layouts to inject for diversity (optional)
+#   # These are generated using the existing PlacementEngine
+#   # Set to 0 or omit if you don't want immigrants
+#   # Recommended: 5-10% of children count
+#   immigrants: 5
+
+
+# ============================================================================
+# CONFIGURATION FILE REFERENCES (Optional)
+# ============================================================================
+# Paths to system configuration files
+# If omitted, defaults will be used
+
+# GA configuration file (crossover, mutation, repair parameters)
+# Default: "ga_ext/ga_ext_config.yaml"
+ga_config: "ga_ext/ga_ext_config.yaml"
+
+# Placement configuration file (grid size, entities, bands, constraints)
+# Default: "config.yaml"
+placement_config: "config.yaml"
+
+
+# ============================================================================
+# RANDOM SEED (Optional)
+# ============================================================================
+# Controls randomness for reproducibility
+#
+# - Set to an integer (e.g., 42) for reproducible results
+#   Same seed = same results every run (useful for debugging)
+#
+# - Set to null or omit for random seed each run
+#   Different results every time (useful for exploration)
+#
+# Default: Uses random_seed from ga_config if not specified here
+random_seed: null
+
+
+# ============================================================================
+# EXPECTED OUTPUT FILES
+# ============================================================================
+#
+# For VARIANT mode (output.root = "ga_output/variants", variants = 10):
+#   ga_output/variants/
+#     variant_000.csv
+#     variant_001.csv
+#     ...
+#     variant_009.csv
+#     lineage_log.csv       (provenance information)
+#
+# For OFFSPRING mode (output.root = "ga_output/gen_001", children = 20, immigrants = 5):
+#   ga_output/gen_001/
+#     child_000.csv
+#     child_001.csv
+#     ...
+#     child_019.csv
+#     immigrant_000.csv
+#     immigrant_001.csv
+#     ...
+#     immigrant_004.csv
+#     lineage_log.csv       (full provenance for all individuals)
+
+
+# ============================================================================
+# LINEAGE LOG FORMAT
+# ============================================================================
+# The lineage_log.csv file tracks the provenance of all generated individuals:
+#
+# Columns:
+#   - child_id:       Unique identifier (e.g., "variant_000", "child_003")
+#   - child_path:     Path to output CSV file
+#   - parent1_path:   Path to first parent (or only parent for variants)
+#   - parent2_path:   Path to second parent (empty for variants)
+#   - crossover_op:   Crossover strategy used (empty for variants)
+#   - mutation_ops:   Mutation operators applied (e.g., "swap|jitter")
+#   - repair_notes:   Summary of repairs performed
+#   - generation:     Generation number (0 for initial variants)
+#
+# Example entries:
+#   variant_000,ga_output/variants/variant_000.csv,output/placement_final.csv,,,swap|jitter,No repairs needed,0
+#   child_000,ga_output/gen_001/child_000.csv,parent1.csv,parent2.csv,bandwise,jitter,Relocated 2 entities,1
+
+
+# ============================================================================
+# ADVANCED: GA CONFIGURATION OPTIONS
+# ============================================================================
+# The ga_config file (ga_ext/ga_ext_config.yaml) controls genetic operators.
+# Key parameters you can tune:
+#
+# Crossover:
+#   crossover_strategy: "bandwise"     # or "block_2d", "entity_wise"
+#   - bandwise:    Safest, inherits each (entity, band) from one parent
+#   - block_2d:    Exploratory, divides grid into spatial blocks
+#   - entity_wise: Aggressive, inherits entire entity types
+#
+# Mutation:
+#   mutation:
+#     operators:
+#       within_band_swap: 0.4   # Probability of swapping entities in same band
+#       band_local_jitter: 0.4  # Probability of moving to nearby cell
+#       micro_reseed: 0.2       # Probability of re-placing entities
+#     jitter_radius: 3          # Max distance for jitter moves (grid cells)
+#     micro_reseed_fraction: 0.1  # Fraction of entities to reseed (10%)
+#
+# Repair:
+#   repair_max_iters: 20        # Iterations for separation refinement
+#   wy: 2.0                     # Y-axis weight for anisotropic distance
+#
+# See ga_ext/ga_ext_config.yaml for full details and more options.
+
+
+# ============================================================================
+# WORKFLOW EXAMPLES
+# ============================================================================
+
+# Example 1: Initial Exploration (Variant Mode)
+# ---------------------------------------------
+# Goal: Generate diverse variants of a single good layout
+#
+# 1. Generate initial layout:
+#      python3 main.py
+#
+# 2. Create config (variant_explore.yaml):
+#      mode: variant
+#      input:
+#        parent: output/placement_final.csv
+#      output:
+#        root: ga_output/explore
+#        overwrite: true
+#      generation:
+#        variants: 20
+#      random_seed: null
+#
+# 3. Generate variants:
+#      python3 ga_cli.py variant_explore.yaml
+#
+# 4. Evaluate all 20 variants with your external evaluator (CFD, ML, etc.)
+#
+# 5. Select top 3-5 performers for next generation
+
+
+# Example 2: Multi-Generation Evolution (Offspring Mode)
+# -------------------------------------------------------
+# Goal: Combine best layouts and evolve over multiple generations
+#
+# 1. After evaluating variants, create parent manifest (parents.csv):
+#      csv_path,score,weight
+#      ga_output/explore/variant_003.csv,0.89,1.0
+#      ga_output/explore/variant_007.csv,0.92,2.0
+#      ga_output/explore/variant_012.csv,0.88,1.5
+#
+# 2. Create config (gen_001.yaml):
+#      mode: offspring
+#      input:
+#        parents_manifest: parents.csv
+#      output:
+#        root: ga_output/generation_001
+#        overwrite: true
+#      generation:
+#        children: 30
+#        immigrants: 5
+#      random_seed: 42
+#
+# 3. Generate next generation:
+#      python3 ga_cli.py gen_001.yaml
+#
+# 4. Evaluate all 35 layouts (30 children + 5 immigrants)
+#
+# 5. Select top performers, create new manifest, repeat for gen_002
+
+
+# Example 3: Focused Refinement (Offspring Mode, No Immigrants)
+# -------------------------------------------------------------
+# Goal: Refine existing solutions without adding new random layouts
+#
+# 1. Create config with immigrants = 0:
+#      mode: offspring
+#      input:
+#        parents_manifest: elite_parents.csv
+#      output:
+#        root: ga_output/refinement
+#      generation:
+#        children: 50
+#        immigrants: 0  # No random layouts
+#
+# 2. Use weighted parent selection to favor best performers
+
+
+# Example 4: Broad Exploration (Offspring Mode, High Immigration)
+# ---------------------------------------------------------------
+# Goal: Escape local optima with fresh random diversity
+#
+# 1. Create config with high immigration rate:
+#      mode: offspring
+#      input:
+#        parents_manifest: parents.csv
+#      output:
+#        root: ga_output/exploration
+#      generation:
+#        children: 20
+#        immigrants: 20  # 50% immigrants for high diversity
+
+
+# ============================================================================
+# TROUBLESHOOTING
+# ============================================================================
+
+# Error: "Output directory already exists"
+# Solution: Set output.overwrite: true
+
+# Error: "Parent file not found"
+# Solution: Check that input.parent path is correct and file exists
+
+# Error: "Invalid mode"
+# Solution: mode must be exactly "variant" or "offspring" (lowercase, quoted)
+
+# Error: "Missing required field"
+# Solution: Ensure all required fields are present:
+#   - Variant mode: mode, input.parent, output.root, generation.variants
+#   - Offspring mode: mode, input.(parents_manifest OR parents_dir),
+#                     output.root, generation.children
+
+# Warning: "No free cells available for relocation"
+# Solution: Grid is too dense. Reduce entity counts or increase grid size
+
+# Issue: Mutation has no effect
+# Solution: Increase mutation probabilities in ga_ext/ga_ext_config.yaml
+
+# Issue: Children are too similar to parents
+# Solution:
+#   - Increase mutation.micro_reseed probability
+#   - Try block_2d or entity_wise crossover
+#   - Add more immigrants
+
+
+# ============================================================================
+# PERFORMANCE TUNING
+# ============================================================================
+
+# For faster generation:
+#   - Reduce repair_max_iters (default: 20) to 10
+#   - Use bandwise crossover (fastest)
+#   - Reduce number of immigrants
+
+# For better exploration:
+#   - Increase micro_reseed probability and fraction
+#   - Use block_2d or entity_wise crossover
+#   - Increase number of immigrants
+#   - Use random_seed: null for different results each run
+
+# For better exploitation:
+#   - Increase within_band_swap probability
+#   - Use bandwise crossover (preserves structure)
+#   - Reduce mutation probabilities
+#   - Use weighted parent selection with high weights on best performers
+
+
+# ============================================================================
+# INTEGRATION WITH EXTERNAL EVALUATORS
+# ============================================================================
+# The GA extension is designed to work with ANY external evaluator:
+#
+# 1. Generate layouts (variant or offspring mode)
+# 2. Layouts are already in CSV format (no conversion needed)
+# 3. Run your evaluator on all CSVs:
+#      - CFD simulation
+#      - Machine learning model
+#      - Analytical model
+#      - Human expert judgment
+# 4. Collect scores for each layout
+# 5. Create parent manifest with scores and weights
+# 6. Generate next generation
+# 7. Repeat
+#
+# Example evaluator script:
+#
+# import pandas as pd
+# import glob
+#
+# def evaluate_layout(csv_path):
+#     """Your evaluation function here."""
+#     layout = pd.read_csv(csv_path)
+#     # Run CFD, ML model, etc.
+#     score = run_simulation(layout)
+#     return score
+#
+# # Evaluate all layouts
+# results = []
+# for csv_file in glob.glob("ga_output/gen_001/*.csv"):
+#     if "lineage" not in csv_file:  # Skip lineage log
+#         score = evaluate_layout(csv_file)
+#         results.append((csv_file, score))
+#
+# # Create parent manifest from top performers
+# results.sort(key=lambda x: x[1], reverse=True)
+# top_5 = results[:5]
+#
+# with open("parents_gen_002.csv", "w") as f:
+#     f.write("csv_path,score,weight\n")
+#     for path, score in top_5:
+#         weight = score  # Use score as weight (higher score = more likely)
+#         f.write(f"{path},{score},{weight}\n")
+
+
+# ============================================================================
+# BEST PRACTICES
+# ============================================================================
+
+# 1. Start with variant mode to explore local neighborhood of good solutions
+# 2. Evaluate thoroughly before moving to offspring mode
+# 3. Use weighted parent selection based on external fitness scores
+# 4. Maintain diversity with immigrants (5-10% of population)
+# 5. Track lineage to understand which operations produce good offspring
+# 6. Use reproducible seeds (random_seed: 42) during development/debugging
+# 7. Use random seeds (random_seed: null) during production runs
+# 8. Save all configurations and lineage logs for reproducibility
+# 9. Monitor population diversity - if all individuals are similar, increase mutation
+# 10. Don't discard all "bad" performers - keep some for genetic diversity
+
+
+# ============================================================================
+# VERSION INFORMATION
+# ============================================================================
+# GA Extension Version: Phase 4 Complete (67% of roadmap)
+# Last Updated: 2025-10-02
+# Documentation: See ga_ext/README.md for detailed usage guide

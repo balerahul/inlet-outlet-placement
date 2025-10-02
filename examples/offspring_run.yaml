@@ -26,29 +26,27 @@ input:
 
 # Output configuration
 output:
-  output_root: "ga_output/generation_001"
+  root: "ga_output/generation_001"
   # If this directory exists, set overwrite to true
   overwrite: true
 
 # Generation parameters
 generation:
   # Number of children to generate via crossover + mutation
-  num_children: 20
+  children: 20
 
   # Number of fresh random layouts to generate for diversity (optional)
   # These are created using the existing PlacementEngine
   # Set to 0 or omit if you don't want immigrants
-  num_immigrants: 5
+  immigrants: 5
 
-  # Parent selection strategy: 'weighted' or 'uniform'
-  # 'weighted' uses weights from manifest (if available)
-  # 'uniform' treats all parents equally
-  parent_selection: "weighted"
+# GA configuration file paths (optional, defaults shown)
+ga_config: "ga_ext/ga_ext_config.yaml"
+placement_config: "config.yaml"
 
-# GA configuration reference
-ga_config:
-  config_path: "ga_ext/ga_ext_config.yaml"
-  # This file controls crossover strategy, mutation probabilities, repair params
+# Random seed for reproducibility (optional)
+# Set to integer for reproducible results, null for random
+random_seed: 42
 
 # ============================================================================
 # Parent Manifest Format (if using parents_manifest)
@@ -72,7 +70,7 @@ ga_config:
 # After running, you will find in ga_output/generation_001/:
 #   - child_000.csv, child_001.csv, ... child_019.csv (20 children)
 #   - immigrant_000.csv, immigrant_001.csv, ... immigrant_004.csv (5 immigrants)
-#   - lineage.csv (full provenance for all individuals)
+#   - lineage_log.csv (full provenance for all individuals)
 #
 # Next steps:
 #   1. Evaluate all layouts with your external evaluator
