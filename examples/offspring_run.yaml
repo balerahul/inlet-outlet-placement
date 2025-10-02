@@ -1,0 +1,84 @@
+# Offspring Mode Run Configuration
+# ==================================
+# Generate children from multiple parents via crossover + mutation.
+#
+# This mode is useful for:
+# - Combining features from multiple good layouts
+# - Multi-generation evolutionary optimization
+# - Exploring the solution space through recombination
+#
+# Usage:
+#   python3 ga_cli.py examples/offspring_run.yaml
+
+mode: "offspring"
+
+# Input: Multiple parents (use either manifest or directory)
+input:
+  # OPTION 1: Parent manifest with scores/weights (recommended)
+  # Allows weighted parent selection based on external fitness
+  parents_manifest: "ga_ext/gen_000/selected_parents.csv"
+
+  # OPTION 2: All CSVs from a directory (uncomment to use)
+  # Uses uniform random parent selection
+  # parents_dir: "ga_ext/gen_000"
+
+  # NOTE: Specify EITHER parents_manifest OR parents_dir, not both
+
+# Output configuration
+output:
+  root: "ga_ext/gen_001"
+  # If this directory exists, set overwrite to true
+  overwrite: false
+
+# Generation parameters
+generation:
+  # Number of children to generate via crossover + mutation
+  children: 30
+
+  # Number of fresh random layouts to generate for diversity
+  # These are created using the existing PlacementEngine
+  # Set to 0 if you don't want immigrants
+  immigrants: 5
+
+# References to system configuration files
+placement_config: "config.yaml"        # Grid, entities, bands, constraints
+ga_config: "ga_ext/ga_ext_config.yaml" # Crossover, mutation, repair params
+
+# Random seed for reproducibility
+# - Set to an integer for reproducible results
+# - Set to null for random seed (different results each run)
+random_seed: 42
+
+# ============================================================================
+# Parent Manifest Format (if using parents_manifest)
+# ============================================================================
+# The manifest is a CSV file with the following columns:
+#
+#   id,path,score,weight,tags
+#   parent_001,ga_ext/gen_000/ind_001.csv,0.89,1.0,elite
+#   parent_002,ga_ext/gen_000/ind_005.csv,0.85,0.8,diverse
+#
+# - id: Unique identifier for the parent
+# - path: Path to CSV layout (relative or absolute)
+# - score: External fitness score (logged but not used for selection)
+# - weight: Sampling weight (higher = more likely to be selected as parent)
+# - tags: Optional metadata
+#
+# See ga_ext/io_utils.py:load_parent_manifest() for details
+
+# ============================================================================
+# Advanced Options (can be omitted - will use defaults from ga_config)
+# ============================================================================
+
+# These parameters override values in ga_ext_config.yaml if specified here:
+# crossover_rate: 0.7       # Probability of crossover vs. direct copy
+# mutation_rate: 0.3        # Probability of mutation per child
+# repair_max_iters: 20      # Max iterations for separation refinement
+
+# ============================================================================
+# Expected Output
+# ============================================================================
+# After running, you will find in ga_ext/gen_001/:
+#   - child_000.csv, child_001.csv, ... child_029.csv (30 children)
+#   - immigrant_000.csv, immigrant_001.csv, ... immigrant_004.csv (5 immigrants)
+#   - lineage_log.csv (full provenance for all individuals)

@@ -1,0 +1,55 @@
+# Variant Mode Run Configuration
+# =================================
+# Generate mutated variants from a single parent layout.
+#
+# This mode is useful for:
+# - Exploring local variations of a known good layout
+# - Testing sensitivity to mutations
+# - Creating diverse alternatives for evaluation
+#
+# Usage:
+#   python3 ga_cli.py examples/variant_run.yaml
+
+mode: "variant"
+
+# Input: Single parent layout
+input:
+  parent: "layouts/best_layout.csv"
+  # The parent CSV must exist and contain valid placement data
+
+# Output configuration
+output:
+  root: "ga_ext/variant_001"
+  # If this directory exists, set overwrite to true
+  overwrite: false
+
+# Generation parameters
+generation:
+  # Number of variants to generate from the parent
+  variants: 20
+  # Each variant will have mutation applied (no crossover)
+
+# References to system configuration files
+# These control grid parameters, entities, and GA operations
+placement_config: "config.yaml"        # Grid, entities, bands, constraints
+ga_config: "ga_ext/ga_ext_config.yaml" # Mutation, crossover, repair params
+
+# Random seed for reproducibility
+# - Set to an integer for reproducible results
+# - Set to null for random seed (different results each run)
+random_seed: null
+
+# ============================================================================
+# Advanced Options (can be omitted - will use defaults from ga_config)
+# ============================================================================
+
+# These parameters override values in ga_ext_config.yaml if specified here:
+# mutation_rate: 0.3        # Probability of mutation per variant
+# repair_max_iters: 20      # Max iterations for separation refinement
+
+# ============================================================================
+# Expected Output
+# ============================================================================
+# After running, you will find in ga_ext/variant_001/:
+#   - variant_000.csv, variant_001.csv, ... variant_019.csv
+#   - lineage_log.csv (provenance information for all variants)
