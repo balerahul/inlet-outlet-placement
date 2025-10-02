@@ -184,13 +184,14 @@ python3 run_placement.py --trials 10
 ### Overview
 **NEW (2025-10-01)**: An optional genetic algorithm extension that evolves existing placement layouts through band-aware crossover and mutation with **external fitness evaluation**.
 
-**Status**: Phases 1-2 complete (33% of roadmap) - Foundation and Operations implemented.
+**Status**: Phases 1-3 complete (50% of roadmap) - Foundation, Operations, and Repair implemented.
 
 ### Key Features
 - ✅ **Non-invasive**: Zero modifications to existing `src/` code
 - ✅ **External fitness**: Accepts pre-selected parents, performs only generation operations
 - ✅ **Band-aware**: All operations respect stratified structure and quotas
 - ✅ **Opt-in**: Separate CLI tool, existing `main.py` behavior unchanged
+- ✅ **Repair & Refinement**: Resolves conflicts, balances quotas, improves separation
 
 ### Directory Structure
 ```
@@ -202,13 +203,14 @@ ga_ext/
   band_utils.py            # Band partitioning utilities
   crossover.py             # 3 crossover strategies
   mutation.py              # 3 mutation operators
-  [TODO] engine_interface.py
-  [TODO] repair.py
+  engine_interface.py      # ✅ Non-invasive wrapper for PlacementEngine
+  repair.py                # ✅ Conflict resolution, quota adjustment, separation refinement
   [TODO] cli.py
 
 tests/test_ga_ext/
   test_io_utils.py         # 18 tests (all passing)
   test_operations.py       # 14 tests (all passing)
+  test_repair.py           # 25 tests (all passing) ✅ NEW
 
 docs/
   methodology_band_aware_partitioning.md
