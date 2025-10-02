@@ -210,11 +210,16 @@ Located at `ga_ext/ga_ext_config.yaml`, this file controls genetic operators:
 placement_config_path: config.yaml  # Main placement configuration
 
 crossover:
-  strategy: bandwise  # 'bandwise', 'block_2d', or 'entity_wise'
+  strategy: bandwise  # 'bandwise', 'block_2d', 'entity_wise', or 'region_aware'
 
   # For block_2d mode:
   block_2d_num_vertical_splits: 2    # Divide grid into 2x2 blocks
   block_2d_num_horizontal_splits: 2
+
+  # For region_aware mode:
+  region_aware:
+    blocks_per_region_x: 2    # Divide each allowed region into 2x2 blocks
+    blocks_per_region_y: 2
 
 mutation:
   # Probability of applying each mutation type
@@ -234,6 +239,23 @@ repair:
 - **bandwise**: Safest. Inherit each (entity, band) from one parent.
 - **block_2d**: Exploratory. Divide grid into blocks, inherit independently.
 - **entity_wise**: Aggressive. Inherit entire entity types from one parent.
+- **region_aware**: Smart. Block crossover within each allowed region independently (guarantees zero region violations).
+
+**Why Region-Aware Crossover?**
+
+When entity types have disjoint allowed regions (e.g., supply inlets in y=3-6, exhaust outlets in y=1-2,7-8), standard block_2d crossover can violate region constraints by inheriting entities from the wrong region. Region-aware crossover solves this by:
+
+1. **Grouping entities by allowed region**: Identifies which entity types share the same allowed region
+2. **Independent block crossover per region**: Applies block-based inheritance within each region separately
+3. **Guaranteed constraint satisfaction**: Entities can never leave their allowed region (zero violations by construction)
+4. **Reduced repair overhead**: No region-based repairs needed, only separation refinement
+5. **Preserves spatial patterns**: Maintains useful 2D patterns within each region
+
+**When to use region_aware**:
+- ✅ Entity types have disjoint or non-overlapping allowed regions
+- ✅ Supply/exhaust separation is critical to preserve
+- ✅ Want exploratory crossover without region violations
+- ❌ Not needed if all entities share the same allowed region (use block_2d instead)
 
 **Mutation Operators**:
 - **swap**: Swap two entities in same band (safe, local optimization)

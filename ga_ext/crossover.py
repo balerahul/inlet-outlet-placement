@@ -252,13 +252,179 @@ def entity_wise_crossover(
     return child, entity_mask
 
 
+def region_aware_crossover(
+    parent_a: Individual,
+    parent_b: Individual,
+    config: Dict,
+    grid_config: Dict,
+    engine_interface: 'EngineInterface',  # Type hint as string to avoid circular import
+    rng: np.random.Generator,
+    blocks_per_region_x: int = 2,
+    blocks_per_region_y: int = 2
+) -> Tuple[Individual, Dict]:
+    """
+    Combine parents using region-aware crossover.
+
+    Groups entities by their allowed regions, then applies block-based crossover
+    WITHIN each region independently. This guarantees that entities never
+    violate their allowed region constraints during crossover.
+
+    This is ideal for systems where entities have disjoint allowed regions
+    (e.g., supply entities in middle rows, exhaust entities in top/bottom rows).
+
+    Algorithm:
+        1. Group entity types by their allowed regions (entities with same
+           allowed region are grouped together)
+        2. For each region group:
+           a. Get bounding box of the allowed region
+           b. Divide region into blocks_per_region_x × blocks_per_region_y blocks
+           c. For each block, randomly inherit from Parent A or Parent B
+           d. Collect entities from both parents based on block mask
+        3. Combine all regions → child
+
+    Args:
+        parent_a: First parent
+        parent_b: Second parent
+        config: GA configuration
+        grid_config: Grid configuration (width, height)
+        engine_interface: Interface to access entity allowed regions
+        rng: Random number generator
+        blocks_per_region_x: Number of blocks to divide each region horizontally
+        blocks_per_region_y: Number of blocks to divide each region vertically
+
+    Returns:
+        Tuple of (child_individual, region_mask)
+        where region_mask maps (region_id, block_x, block_y) -> "A"|"B"
+
+    Example:
+        Supply region (y=3-6): vinlet, acinlet
+        Exhaust region (y=1-2, 7-8): voutlet, acoutlet
+
+        With blocks_per_region: 2×2:
+        - Supply region divided into 4 blocks
+        - Exhaust region divided into 4 blocks
+        - Total 8 independent inheritance decisions
+        - Guarantees: All vinlet/acinlet stay in supply region
+                     All voutlet/acoutlet stay in exhaust region
+    """
+    from .engine_interface import EngineInterface  # Import here to avoid circular dependency
+
+    # Step 1: Group entity types by their allowed regions
+    # Two entities belong to the same region group if they have identical allowed_region sets
+    region_groups = {}  # Maps frozenset(allowed_region) -> [entity_types]
+
+    all_entity_types = set(parent_a.placements.keys()) | set(parent_b.placements.keys())
+
+    for entity_type in all_entity_types:
+        if entity_type not in engine_interface.entity_map:
+            # Unknown entity type, skip
+            continue
+
+        entity = engine_interface.entity_map[entity_type]
+        # Convert allowed_region Set[GridCell] to frozenset for hashability
+        region_key = frozenset((cell.x, cell.y) for cell in entity.allowed_region)
+
+        if region_key not in region_groups:
+            region_groups[region_key] = {
+                'entity_types': [],
+                'cells': entity.allowed_region  # Keep original Set[GridCell]
+            }
+        region_groups[region_key]['entity_types'].append(entity_type)
+
+    # Step 2: For each region group, apply block crossover
+    child_placements = {}
+    crossover_mask = {}
+
+    for region_id, (region_key, region_data) in enumerate(region_groups.items()):
+        entity_types_in_region = region_data['entity_types']
+        allowed_cells = region_data['cells']
+
+        # Get bounding box of this region
+        x_coords = [cell.x for cell in allowed_cells]
+        y_coords = [cell.y for cell in allowed_cells]
+
+        if not x_coords or not y_coords:
+            # Empty region, skip
+            continue
+
+        x_min, x_max = min(x_coords), max(x_coords)
+        y_min, y_max = min(y_coords), max(y_coords)
+
+        region_width = x_max - x_min + 1
+        region_height = y_max - y_min + 1
+
+        # Calculate block dimensions within this region
+        block_width = region_width / blocks_per_region_x
+        block_height = region_height / blocks_per_region_y
+
+        # Create block mask for this region
+        block_mask = {}
+        for bx in range(blocks_per_region_x):
+            for by in range(blocks_per_region_y):
+                use_parent_a = rng.random() < 0.5
+                block_mask[(bx, by)] = "A" if use_parent_a else "B"
+                crossover_mask[(region_id, bx, by)] = "A" if use_parent_a else "B"
+
+        # Function to determine which block a position belongs to within this region
+        def get_block_in_region(x: int, y: int) -> Optional[Tuple[int, int]]:
+            # Check if position is within this region's bounding box
+            if not (x_min <= x <= x_max and y_min <= y <= y_max):
+                return None
+
+            # Calculate block coordinates relative to region
+            bx = min(int((x - x_min) / block_width), blocks_per_region_x - 1)
+            by = min(int((y - y_min) / block_height), blocks_per_region_y - 1)
+            return (bx, by)
+
+        # Inherit entities for this region based on block mask
+        for entity_type in entity_types_in_region:
+            if entity_type not in child_placements:
+                child_placements[entity_type] = []
+
+            # Get positions from both parents for this entity type
+            positions_a = parent_a.placements.get(entity_type, [])
+            positions_b = parent_b.placements.get(entity_type, [])
+
+            # Add positions from A based on block mask
+            for x, y in positions_a:
+                block = get_block_in_region(x, y)
+                if block is not None and block_mask.get(block) == "A":
+                    child_placements[entity_type].append((x, y))
+
+            # Add positions from B based on block mask
+            for x, y in positions_b:
+                block = get_block_in_region(x, y)
+                if block is not None and block_mask.get(block) == "B":
+                    child_placements[entity_type].append((x, y))
+
+    # Create child individual
+    child_id = f"{parent_a.id}_x_{parent_b.id}_region"
+    child = Individual(
+        id=child_id,
+        path=parent_a.path.parent / f"{child_id}.csv",
+        placements=child_placements,
+        metadata={
+            'parent_a_id': parent_a.id,
+            'parent_b_id': parent_b.id,
+            'crossover_strategy': 'region_aware',
+            'num_regions': len(region_groups),
+            'blocks_per_region_x': blocks_per_region_x,
+            'blocks_per_region_y': blocks_per_region_y,
+            'provisional': True  # Needs repair
+        }
+    )
+
+    return child, crossover_mask
+
+
 def apply_crossover(
     parent_a: Individual,
     parent_b: Individual,
     config: Dict,
     grid_config: Dict,
     band_config: Dict,
-    rng: np.random.Generator
+    rng: np.random.Generator,
+    engine_interface: Optional['EngineInterface'] = None
 ) -> Tuple[Individual, Dict]:
     """
     Apply crossover using configured strategy.
@@ -273,20 +439,41 @@ def apply_crossover(
         grid_config: Grid configuration
         band_config: Band configuration
         rng: Random number generator
+        engine_interface: Optional engine interface (required for region_aware strategy)
 
     Returns:
         Tuple of (child_individual, crossover_mask)
+
+    Raises:
+        ValueError: If strategy is unknown or if region_aware is selected but
+                   engine_interface is not provided
     """
     strategy = config.get('crossover_strategy', 'bandwise')
 
     if strategy == 'bandwise':
         return bandwise_crossover(parent_a, parent_b, config, grid_config, band_config, rng)
+
     elif strategy == 'block_2d':
         blocks_x = config.get('block_2d', {}).get('blocks_x', 4)
         blocks_y = config.get('block_2d', {}).get('blocks_y', 4)
         return block_2d_crossover(parent_a, parent_b, config, grid_config, rng, blocks_x, blocks_y)
+
     elif strategy == 'entity_wise':
         return entity_wise_crossover(parent_a, parent_b, config, rng)
+
+    elif strategy == 'region_aware':
+        if engine_interface is None:
+            raise ValueError(
+                "region_aware crossover requires engine_interface parameter. "
+                "Please pass engine_interface to apply_crossover()."
+            )
+        blocks_per_region_x = config.get('region_aware', {}).get('blocks_per_region_x', 2)
+        blocks_per_region_y = config.get('region_aware', {}).get('blocks_per_region_y', 2)
+        return region_aware_crossover(
+            parent_a, parent_b, config, grid_config, engine_interface, rng,
+            blocks_per_region_x, blocks_per_region_y
+        )
+
     else:
         raise ValueError(f"Unknown crossover strategy: {strategy}")
 

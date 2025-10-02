@@ -180,10 +180,11 @@ random_seed: null
 # Key parameters you can tune:
 #
 # Crossover:
-#   crossover_strategy: "bandwise"     # or "block_2d", "entity_wise"
-#   - bandwise:    Safest, inherits each (entity, band) from one parent
-#   - block_2d:    Exploratory, divides grid into spatial blocks
-#   - entity_wise: Aggressive, inherits entire entity types
+#   crossover_strategy: "bandwise"     # or "block_2d", "entity_wise", "region_aware"
+#   - bandwise:     Safest, inherits each (entity, band) from one parent
+#   - block_2d:     Exploratory, divides grid into spatial blocks
+#   - entity_wise:  Aggressive, inherits entire entity types
+#   - region_aware: Smart, block crossover per region (zero region violations)
 #
 # Mutation:
 #   mutation:
@@ -293,6 +294,40 @@ random_seed: null
 #        immigrants: 20  # 50% immigrants for high diversity
 
 
+# Example 5: Region-Aware Crossover (For Disjoint Allowed Regions)
+# -----------------------------------------------------------------
+# Goal: Explore layouts with supply/exhaust in separate regions
+#
+# Use case: Your config.yaml has disjoint allowed regions:
+#   - Supply (vinlet, acinlet): y ∈ [3, 6]
+#   - Exhaust (voutlet, acoutlet): y ∈ [1,2] ∪ [7,8]
+#
+# 1. Modify ga_ext/ga_ext_config.yaml:
+#      crossover:
+#        strategy: "region_aware"
+#        region_aware:
+#          blocks_per_region_x: 3  # Divide each region into 3×3 blocks
+#          blocks_per_region_y: 3
+#
+# 2. Create offspring config:
+#      mode: offspring
+#      input:
+#        parents_manifest: parents.csv
+#      output:
+#        root: ga_output/region_aware_exploration
+#      generation:
+#        children: 30
+#        immigrants: 5
+#
+# 3. Generate offspring - region constraints guaranteed (zero violations!)
+#
+# Benefits:
+#   - No region violations by construction (unlike block_2d)
+#   - Exploratory block-based crossover within each region
+#   - Reduced repair overhead
+#   - Preserves supply/exhaust separation
+
+
 # ============================================================================
 # TROUBLESHOOTING
 # ============================================================================
@@ -321,8 +356,14 @@ random_seed: null
 # Issue: Children are too similar to parents
 # Solution:
 #   - Increase mutation.micro_reseed probability
-#   - Try block_2d or entity_wise crossover
+#   - Try block_2d, entity_wise, or region_aware crossover
 #   - Add more immigrants
+
+# Issue: Getting region violations after crossover
+# Solution:
+#   - Use region_aware crossover instead of block_2d
+#   - Entities with disjoint allowed regions benefit most from region_aware
+#   - If all entities share same allowed region, block_2d is fine
 
 
 # ============================================================================
@@ -336,9 +377,10 @@ random_seed: null
 
 # For better exploration:
 #   - Increase micro_reseed probability and fraction
-#   - Use block_2d or entity_wise crossover
+#   - Use block_2d, entity_wise, or region_aware crossover
 #   - Increase number of immigrants
 #   - Use random_seed: null for different results each run
+#   - Use region_aware when entities have disjoint allowed regions
 
 # For better exploitation:
 #   - Increase within_band_swap probability

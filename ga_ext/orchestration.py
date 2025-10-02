@@ -19,7 +19,7 @@ from .io_utils import (
 )
 from .engine_interface import EngineInterface
 from .mutation import mutate
-from .crossover import bandwise_crossover
+from .crossover import apply_crossover
 from .repair import repair_and_refine
 
 
@@ -261,9 +261,10 @@ def run_offspring_mode(run_config: Dict) -> None:
         # Select parents
         parent_a, parent_b = select_two_parents(parents, weights, rng)
 
-        # Crossover
-        child, crossover_mask = bandwise_crossover(
-            parent_a, parent_b, ga_config, grid_config, band_config, rng
+        # Crossover (uses strategy from ga_config)
+        child, crossover_mask = apply_crossover(
+            parent_a, parent_b, ga_config, grid_config, band_config, rng,
+            engine_interface=engine  # Pass engine for region_aware strategy
         )
         child.id = f"child_{i:03d}"
 

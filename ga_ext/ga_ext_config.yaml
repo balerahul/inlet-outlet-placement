@@ -1,114 +1,703 @@
+# ============================================================================
 # GA Extension Configuration
-# External fitness mode - no internal selection or scoring
+# ============================================================================
+# This file controls the genetic algorithm behavior for evolving placement
+# layouts. It is referenced by run configuration YAMLs (e.g., variant_run.yaml,
+# offspring_run.yaml) via the `ga_config` parameter.
+#
+# IMPORTANT: This is a SECOND-LEVEL config file:
+#   - Level 1 (run config): Specifies WHAT to do (inputs, outputs, counts)
+#   - Level 2 (this file): Specifies HOW the GA works (crossover, mutation, repair)
+#
+# External Fitness Mode: This GA does NOT compute fitness scores internally.
+# Instead, you evaluate layouts externally (CFD, ML, etc.) and provide
+# pre-selected parents with scores and weights in a manifest file.
+#
+# ============================================================================
+
 
 # ============================================================================
-# Generation Parameters
+# CROSSOVER CONFIGURATION
+# ============================================================================
+# Crossover combines two parent layouts to create a child by inheriting
+# different "genes" (spatial regions or entity groups) from each parent.
+#
+# Think of it like sexual reproduction: child gets some features from mom,
+# some from dad. In our case, "features" are spatial patterns or entity groups.
+
+crossover_rate: 0.7
+# Probability that crossover occurs (vs. just copying a parent)
+# Range: [0.0, 1.0]
+# - 0.0: Never crossover (each child is a mutated copy of one parent)
+# - 0.5: 50% chance of crossover, 50% chance of direct copy
+# - 1.0: Always perform crossover
+#
+# Recommended: 0.6-0.8 for good recombination
+# Higher values → more diversity from parent mixing
+# Lower values → children more similar to individual parents
+
+
+crossover_strategy: "bandwise"
+# How to divide and inherit "genes" from parents
+# Options: "bandwise", "block_2d", "entity_wise", "region_aware"
+#
+# IMPORTANT: Different strategies have different trade-offs!
+#
+# ┌─────────────────┬──────────────┬──────────────┬──────────────┐
+# │ Strategy        │ Granularity  │ Safety       │ Diversity    │
+# ├─────────────────┼──────────────┼──────────────┼──────────────┤
+# │ bandwise        │ Medium       │ Very safe    │ Medium       │
+# │ block_2d        │ Fine/Coarse  │ Safe         │ High         │
+# │ entity_wise     │ Very coarse  │ Less safe    │ Very high    │
+# │ region_aware    │ Medium       │ Very safe    │ Medium-High  │
+# └─────────────────┴──────────────┴──────────────┴──────────────┘
+#
+# DETAILED EXPLANATION OF EACH STRATEGY:
+#
+# 1. BANDWISE (safest, recommended default)
+#    ─────────────────────────────────────
+#    For each (entity_type, band_id) combination, inherit from one parent.
+#
+#    Example: Grid with 2 bands, 2 entity types
+#      Gene 1: (vinlet, band_0)  → Inherit from Parent A
+#      Gene 2: (vinlet, band_1)  → Inherit from Parent B
+#      Gene 3: (voutlet, band_0) → Inherit from Parent B
+#      Gene 4: (voutlet, band_1) → Inherit from Parent A
+#
+#    Advantages:
+#      + Preserves band quotas well (by construction)
+#      + Low repair overhead
+#      + Maintains stratification constraints
+#
+#    Disadvantages:
+#      - Medium diversity (not as exploratory as block_2d)
+#      - Doesn't preserve fine spatial patterns within bands
+#
+#    Use when:
+#      - You want reliable, safe crossover
+#      - Band structure is critical
+#      - You have many bands (3-6+)
+#
+#
+# 2. BLOCK_2D (most flexible, good for exploration)
+#    ───────────────────────────────────────────────
+#    Divides grid into rectangular blocks, inherits each block from one parent.
+#    Block count is configured below in `block_2d` section.
+#
+#    Example: 40×40 grid with 2×2 blocks
+#      ┌─────────────┬─────────────┐
+#      │ NW block    │ NE block    │  NW, SE: From Parent A
+#      │ (from A)    │ (from B)    │  NE, SW: From Parent B
+#      ├─────────────┼─────────────┤
+#      │ SW block    │ SE block    │
+#      │ (from B)    │ (from A)    │
+#      └─────────────┴─────────────┘
+#
+#    Advantages:
+#      + Preserves spatial patterns (e.g., "cluster in NW corner")
+#      + Highly configurable (adjust block count)
+#      + Good for discovering novel combinations
+#
+#    Disadvantages:
+#      - Can violate band quotas (requires repair)
+#      - May create imbalanced entity counts
+#      - Blocks can cut across band boundaries
+#
+#    Use when:
+#      - You want maximum diversity
+#      - Spatial patterns matter more than band quotas
+#      - You have good repair mechanisms
+#      - Grid has meaningful spatial structure
+#
+#
+# 3. ENTITY_WISE (very coarse, aggressive exploration)
+#    ──────────────────────────────────────────────────
+#    Inherits entire entity types from one parent.
+#
+#    Example: 4 entity types
+#      vinlet:   From Parent A (all 4 vinlets)
+#      voutlet:  From Parent B (all 4 voutlets)
+#      acinlet:  From Parent A (all 8 acinlets)
+#      acoutlet: From Parent B (all 8 acoutlets)
+#
+#    Advantages:
+#      + Maximum diversity (very different children)
+#      + Simple to understand
+#      + Fast (no complex partitioning)
+#
+#    Disadvantages:
+#      - Very coarse (only 2^4 = 16 possible combinations for 4 entity types)
+#      - Often creates highly imbalanced layouts
+#      - Requires significant repair
+#
+#    Use when:
+#      - You want maximum exploration
+#      - Repair is fast and effective
+#      - You have few entity types (2-4)
+#      - Early in evolution (broad search)
+#
+#
+# 4. REGION_AWARE (safest for region-constrained problems) ⭐ NEW
+#    ──────────────────────────────────────────────────────────
+#    Groups entities by their allowed regions, then applies block crossover
+#    WITHIN each region independently. Guarantees no region violations.
+#
+#    Example: Supply region (y=3-6) vs Exhaust region (y=1-2, 7-8)
+#      Supply region:  Divide into 2×2 blocks, crossover within supply
+#      Exhaust region: Divide into 2×2 blocks, crossover within exhaust
+#      → vinlet/acinlet stay in supply region (no violations!)
+#      → voutlet/acoutlet stay in exhaust region (no violations!)
+#
+#    Advantages:
+#      + ZERO region violations (by construction)
+#      + Minimal repair overhead
+#      + Preserves spatial patterns within each region
+#      + Ideal for disjoint allowed regions
+#
+#    Disadvantages:
+#      - Only useful when entities have distinct allowed regions
+#      - Slightly more complex implementation
+#
+#    Use when:
+#      - Entities have disjoint allowed regions (supply vs exhaust)
+#      - Region violations are expensive to repair
+#      - You want guarantee of valid regions in children
+#
+#
+# QUICK DECISION GUIDE:
+# ────────────────────
+# - Default / Not sure?           → Use "bandwise"
+# - Want maximum diversity?       → Use "block_2d"
+# - Have disjoint regions?        → Use "region_aware"
+# - Early exploration phase?      → Use "entity_wise"
+# - Late refinement phase?        → Use "bandwise"
+
+
+# ============================================================================
+# BLOCK-2D CROSSOVER CONFIGURATION (only used if crossover_strategy: "block_2d")
 # ============================================================================
 
-# Crossover settings
-crossover_rate: 0.7  # Probability of crossover (vs. direct copy)
-crossover_strategy: "bandwise"  # Options: "bandwise", "block_2d"
-
-# For block_2d crossover (optional)
 block_2d:
-  blocks_x: 4  # Number of horizontal blocks
-  blocks_y: 4  # Number of vertical blocks
+  blocks_x: 4
+  # Number of DIVISIONS along X-axis (horizontal)
+  # Grid is divided into this many vertical stripes
+  #
+  # IMPORTANT: This is NOT the block size in cells!
+  # Block width = grid_width ÷ blocks_x
+  #
+  # Example calculations:
+  #   Grid 100×100, blocks_x: 4  → Each block is 25 cells wide
+  #   Grid 100×100, blocks_x: 10 → Each block is 10 cells wide
+  #   Grid 200×50,  blocks_x: 4  → Each block is 50 cells wide
+  #
+  # Guidelines for choosing blocks_x:
+  #   - Small grids (20×20):    2-3 blocks
+  #   - Medium grids (50×50):   3-5 blocks
+  #   - Large grids (100×100):  4-8 blocks
+  #   - Very large (200×200):   6-12 blocks
+  #
+  # Rule of thumb: Block width should be ~10-20 cells for good spatial patterns
+  # Smaller blocks (more divisions) → finer inheritance, less diversity
+  # Larger blocks (fewer divisions) → coarser inheritance, more diversity
 
-# Mutation settings
-mutation_rate: 0.3  # Per-individual mutation probability
+
+  blocks_y: 4
+  # Number of DIVISIONS along Y-axis (vertical)
+  # Grid is divided into this many horizontal stripes
+  #
+  # Block height = grid_height ÷ blocks_y
+  #
+  # For rectangular grids, consider asymmetric blocking:
+  #   Example: 200×50 grid
+  #     blocks_x: 8, blocks_y: 2  → Blocks are 25×25 (squarish)
+  #     (NOT blocks_x: 4, blocks_y: 4 → Blocks are 50×12.5 elongated)
+  #
+  # Symmetric vs Asymmetric:
+  #   - Symmetric (blocks_x = blocks_y): For square or nearly-square grids
+  #   - Asymmetric: Adjust to make blocks roughly square-shaped
+
+  # Total number of blocks = blocks_x × blocks_y
+  # Examples:
+  #   2×2 = 4 blocks  (very coarse, like quadrants)
+  #   4×4 = 16 blocks (balanced, recommended default)
+  #   8×8 = 64 blocks (very fine, almost bandwise)
+
+
+# ============================================================================
+# REGION-AWARE CROSSOVER CONFIGURATION (only used if crossover_strategy: "region_aware")
+# ============================================================================
+
+region_aware:
+  blocks_per_region_x: 2
+  # Number of blocks to divide EACH allowed region into (horizontal)
+  #
+  # IMPORTANT: Unlike block_2d, this divides each REGION, not the whole grid!
+  #
+  # Example: Supply region spans 10 cells horizontally
+  #   blocks_per_region_x: 2  → Each block is 5 cells wide within supply region
+  #   blocks_per_region_x: 4  → Each block is 2.5 cells wide
+  #
+  # Recommendation:
+  #   - Start with 2×2 (4 blocks per region)
+  #   - Increase to 3×3 or 4×4 for larger regions
+  #   - Don't go too high (diminishing returns)
+
+
+  blocks_per_region_y: 2
+  # Number of blocks to divide EACH allowed region into (vertical)
+  #
+  # For regions with different aspect ratios, you may want asymmetric blocking:
+  #   Example: Supply region is 40 wide × 10 tall
+  #     blocks_per_region_x: 4, blocks_per_region_y: 2
+  #     → Blocks are 10×5 (squarish)
+
+
+# ============================================================================
+# MUTATION CONFIGURATION
+# ============================================================================
+# Mutation introduces random changes to individuals after crossover.
+# Think of it like random genetic variations that create diversity.
+
+mutation_rate: 0.3
+# Probability that mutation is applied to an individual
+# Range: [0.0, 1.0]
+# - 0.0: No mutation (children are exact crossover results)
+# - 0.5: 50% of children get mutated
+# - 1.0: All children get mutated
+#
+# Recommended: 0.2-0.4
+# Higher values → more diversity, but harder to preserve good patterns
+# Lower values → children stay closer to parents
+
 
 mutation:
   operators:
-    within_band_swap: 0.4      # Swap two entities in same band
-    band_local_jitter: 0.4     # Move to nearby free cell
-    micro_reseed: 0.2          # Re-place small fraction
-  max_ops_per_individual: 3    # Max mutation operations per child
-  micro_reseed_fraction: 0.1   # 10% of entities for micro_reseed
+    # IMPORTANT: These are INDEPENDENT probabilities!
+    # An individual can have multiple mutations applied.
+    # They do NOT need to sum to 1.0.
+
+    within_band_swap: 0.4
+    # Probability of swapping two entities within the same band
+    #
+    # How it works:
+    #   1. Pick a random entity type (e.g., vinlet)
+    #   2. Pick a random band (e.g., band 1)
+    #   3. If that (entity, band) has ≥2 entities, swap two positions
+    #   4. Repeat for other entity types
+    #
+    # Effect:
+    #   - LOCAL optimization (small changes)
+    #   - Preserves band quotas perfectly
+    #   - Preserves entity counts perfectly
+    #   - Changes spatial distribution within band
+    #
+    # Use cases:
+    #   - Fine-tuning spatial patterns
+    #   - Late-stage optimization
+    #   - When you have good solutions and want minor improvements
+    #
+    # Recommended: 0.3-0.5 (moderate to high)
+
+
+    band_local_jitter: 0.4
+    # Probability of moving entities to nearby free cells (within same band)
+    #
+    # How it works:
+    #   1. Pick random entities
+    #   2. Find free cells within `jitter_radius` distance
+    #   3. Move entity to a random nearby free cell
+    #   4. Only moves within same band (preserves quotas)
+    #
+    # Effect:
+    #   - BALANCED exploration (medium changes)
+    #   - Can escape local optima
+    #   - Preserves band membership
+    #   - May improve separation distances
+    #
+    # Use cases:
+    #   - General-purpose mutation
+    #   - When you want exploration but not too aggressive
+    #   - Escaping suboptimal spatial configurations
+    #
+    # Recommended: 0.3-0.5 (moderate to high)
+
+
+    micro_reseed: 0.2
+    # Probability of re-placing a small fraction of entities randomly
+    #
+    # How it works:
+    #   1. Select `micro_reseed_fraction` of entities (e.g., 10%)
+    #   2. Remove them from current positions
+    #   3. Re-place them randomly in their allowed regions
+    #   4. Like restarting a small part of the layout
+    #
+    # Effect:
+    #   - AGGRESSIVE exploration (large changes)
+    #   - Can drastically change spatial patterns
+    #   - Escapes local optima effectively
+    #   - May temporarily worsen quality (needs repair)
+    #
+    # Use cases:
+    #   - When evolution is stuck (no improvement for many generations)
+    #   - Early exploration phase
+    #   - Escaping deep local optima
+    #
+    # Recommended: 0.1-0.3 (low to moderate)
+    # Too high → destroys good patterns
+    # Too low → hard to escape local optima
+
+
+  max_ops_per_individual: 3
+  # Maximum number of mutation operations to apply per individual
+  #
+  # The algorithm applies mutations in order (swap, jitter, reseed) until
+  # this limit is reached or all operators have been tried.
+  #
+  # Example with max_ops: 3
+  #   Individual gets:
+  #     - within_band_swap (40% chance)
+  #     - band_local_jitter (40% chance)
+  #     - micro_reseed (20% chance)
+  #   → Could get 0-3 mutations
+  #
+  # Recommended: 2-3
+  # Higher → more mutation diversity per individual
+  # Lower → gentler mutations
+
+
+  jitter_radius: 3
+  # Maximum distance (in grid cells) for band_local_jitter moves
+  #
+  # When jittering, entities can only move to cells within this radius.
+  # Distance is Euclidean: sqrt((x2-x1)² + (y2-y1)²)
+  #
+  # Example with jitter_radius: 3
+  #   Entity at (10, 5) can move to cells within radius 3:
+  #   - (10, 8): distance = 3 ✓
+  #   - (13, 5): distance = 3 ✓
+  #   - (12, 7): distance = sqrt(4+4) = 2.8 ✓
+  #   - (14, 8): distance = sqrt(16+9) = 5 ✗ (too far)
+  #
+  # Guidelines:
+  #   - Small grids (20×20):  radius 2-3
+  #   - Medium grids (50×50): radius 3-5
+  #   - Large grids (100+):   radius 5-10
+  #
+  # Smaller radius → conservative local moves
+  # Larger radius → more exploratory moves
+
+
+  micro_reseed_fraction: 0.1
+  # Fraction of entities to re-place during micro_reseed mutation
+  # Range: [0.0, 1.0]
+  #
+  # Example: 20 total entities, fraction: 0.1
+  #   → Re-place 2 entities randomly
+  #
+  # Example: 100 total entities, fraction: 0.2
+  #   → Re-place 20 entities randomly
+  #
+  # Recommended: 0.05-0.15 (5-15% of entities)
+  # Higher → more disruptive (good for escaping optima, bad for preserving patterns)
+  # Lower → gentler (preserves more of parent structure)
+
 
 # ============================================================================
-# Repair & Refinement Parameters
+# REPAIR & REFINEMENT CONFIGURATION
 # ============================================================================
+# After crossover and mutation, children often have violations:
+#   - Overlapping positions (multiple entities at same cell)
+#   - Band quota imbalances
+#   - Poor separation distances
+#
+# The repair system fixes these issues before saving children.
 
-repair_max_iters: 20           # Max iterations for separation refinement
+repair_max_iters: 20
+# Maximum iterations for separation refinement (Phase-C style optimization)
+#
+# How separation refinement works:
+#   1. Calculate current minimum distance between all entities
+#   2. Try local swaps/nudges to improve minimum distance
+#   3. Accept moves that increase minimum distance
+#   4. Repeat for up to `repair_max_iters` iterations
+#
+# More iterations → better separation, but slower
+# Fewer iterations → faster, but may not fully optimize
+#
+# Recommended: 15-30
+# - 10-15: Fast, minimal refinement
+# - 20-30: Balanced (recommended)
+# - 50+:   Thorough, slow
+#
+# Performance impact:
+#   20 iterations: ~0.1-0.3 seconds per child
+#   50 iterations: ~0.3-0.8 seconds per child
 
-# Anisotropic distance weight (from existing config)
-wy: 2.0                        # Y-axis weight for separation (emphasizes vertical)
 
-# Repair behavior
+wy: 2.0
+# Anisotropic distance weight for Y-axis (vertical) separation
+#
+# When calculating distances, Y-axis differences are multiplied by this factor.
+# Effective distance = sqrt((x2-x1)² + wy²·(y2-y1)²)
+#
+# Why this matters:
+#   - Air flow often has vertical stratification
+#   - Vertical separation may be more important than horizontal
+#   - Emphasizes vertical spacing in optimization
+#
+# Example with wy: 2.0
+#   Distance from (10, 5) to (11, 6):
+#     Standard:   sqrt(1² + 1²) = 1.41
+#     Anisotropic: sqrt(1² + 4·1²) = sqrt(5) = 2.24
+#   → Vertical moves are "penalized" 2x, encouraging vertical spread
+#
+# Recommended:
+#   - wy: 1.0 → No anisotropy (standard Euclidean)
+#   - wy: 1.5-2.0 → Moderate vertical emphasis (recommended)
+#   - wy: 3.0+ → Strong vertical emphasis
+#
+# Use higher values when:
+#   - Vertical stratification is critical
+#   - You want entities spread across bands
+#   - Horizontal clustering is acceptable
+
+
 repair:
-  allow_radius_reduction: true  # Allow controlled radius reduction in dense areas
-  max_radius_reduction: 0.2     # Max 20% reduction
-  allow_quota_borrow: true      # Allow controlled quota violations
-  max_quota_borrow_percent: 0.1 # Max 10% quota borrow per band
+  allow_radius_reduction: true
+  # Allow controlled reduction of separation radius in dense areas
+  #
+  # When true: If repair can't satisfy all separation constraints, it may
+  #            reduce radii by up to `max_radius_reduction` to fit entities.
+  #
+  # When false: Repair will fail if constraints can't be satisfied, and
+  #             child will be discarded or re-generated.
+  #
+  # Recommended: true (more forgiving, fewer failed children)
+  # Set to false only if separation constraints are absolutely critical
+
+
+  max_radius_reduction: 0.2
+  # Maximum allowed reduction in separation radius (as fraction)
+  # Range: [0.0, 1.0]
+  #
+  # Example: Original radius = 5.0, max_reduction = 0.2
+  #   → Radius can be reduced to: 5.0 × (1 - 0.2) = 4.0 (minimum)
+  #
+  # Only used if `allow_radius_reduction: true`
+  #
+  # Recommended: 0.1-0.2 (10-20% reduction)
+  # Higher → more forgiving (easier to repair)
+  # Lower → stricter (maintains separation better)
+
+
+  allow_quota_borrow: true
+  # Allow controlled quota violations (borrowing from adjacent bands)
+  #
+  # When true: If a band can't fit its quota, borrow from adjacent bands.
+  # When false: Strict quota enforcement (may fail repair).
+  #
+  # Recommended: true (more robust)
+  # Set to false only if band quotas are absolutely critical
+
+
+  max_quota_borrow_percent: 0.1
+  # Maximum quota violation as fraction of expected quota
+  # Range: [0.0, 1.0]
+  #
+  # Example: Band expects 10 entities, max_borrow = 0.1
+  #   → Can have 9-11 entities (±1)
+  #
+  # Example: Band expects 20 entities, max_borrow = 0.15
+  #   → Can have 17-23 entities (±3)
+  #
+  # Only used if `allow_quota_borrow: true`
+  #
+  # Recommended: 0.05-0.15 (5-15% tolerance)
+  # Higher → more forgiving (easier to repair)
+  # Lower → stricter (maintains quotas better)
+
 
 # ============================================================================
-# Diversity Maintenance
+# DIVERSITY MAINTENANCE (Currently not used in CLI, reserved for future)
 # ============================================================================
 
-immigrants: 2  # Number of fresh random layouts per generation
+immigrants: 2
+# Number of fresh random layouts to inject per generation
+#
+# NOTE: This parameter is NOT currently used by the CLI.
+# Immigration is controlled by `generation.num_immigrants` in the run config.
+#
+# This is reserved for future features or programmatic use.
+
 
 # ============================================================================
-# Reproducibility
+# REPRODUCIBILITY
 # ============================================================================
 
-random_seed: null  # null = random each run, integer = fixed seed for reproducibility
+random_seed: null
+# Random seed for reproducible results
+# Type: integer or null
+#
+# - null: Random seed each run (different results every time)
+# - integer (e.g., 42): Fixed seed (same results every time)
+#
 # Examples:
-#   random_seed: 42      # Fixed, reproducible results
-#   random_seed: null    # Random seed each run
-#   random_seed: "random"  # Same as null
+#   random_seed: 42     # Reproducible (always same)
+#   random_seed: null   # Random (different each run)
+#
+# NOTE: Run configs can override this with their own random_seed.
+#       If both are set, run config takes precedence.
+#
+# Use fixed seed when:
+#   - Debugging
+#   - Comparing algorithm changes
+#   - Reproducible experiments
+#
+# Use null/random when:
+#   - Production runs
+#   - Exploring search space
+#   - Want diversity across runs
+
 
 # ============================================================================
-# Output Configuration
+# OUTPUT CONFIGURATION (Currently not used by CLI, reserved for future)
 # ============================================================================
+# These parameters are NOT currently used. Output paths are controlled by
+# the run configuration YAML files. These are reserved for future features.
 
-output_root: "ga_ext"  # Root folder for all GA outputs
+output_root: "ga_ext"
 
-# Naming conventions
 naming:
-  child_prefix: "child"           # child_000.csv, child_001.csv, ...
-  immigrant_prefix: "immigrant"   # immigrant_000.csv, immigrant_001.csv, ...
-  variant_prefix: "variant"       # variant_000.csv, variant_001.csv, ...
-  generation_format: "gen_{:03d}" # gen_000, gen_001, ...
+  child_prefix: "child"
+  immigrant_prefix: "immigrant"
+  variant_prefix: "variant"
+  generation_format: "gen_{:03d}"
 
-# Logging
 logging:
-  save_lineage: true              # Save lineage_log.csv
-  save_metadata: true             # Save sidecar metadata files
-  verbose: true                   # Print progress messages
+  save_lineage: true
+  save_metadata: true
+  verbose: true
+
 
 # ============================================================================
-# Parent Selection (Offspring Mode)
+# PARENT SELECTION (Currently not used by CLI, reserved for future)
 # ============================================================================
+# Parent selection is currently handled by orchestration.py based on
+# manifest weights or uniform random. These settings are reserved for
+# future enhancements.
 
-# When manifest provides weights, use weighted random selection
-# Otherwise, uniform random
 parent_selection:
-  use_manifest_weights: true      # Use weights from manifest if available
-  uniform_fallback: true          # Fall back to uniform if no weights
+  use_manifest_weights: true
+  uniform_fallback: true
+
 
 # ============================================================================
-# Safety & Validation
+# VALIDATION (Currently not used, reserved for future)
 # ============================================================================
+# Validation is currently always performed by the repair system.
+# These settings are reserved for future customization.
 
 validation:
-  check_no_overlaps: true         # Validate no cell overlaps
-  check_allowed_regions: true     # Validate all entities in allowed regions
-  check_quotas: true              # Validate quotas met (or controlled borrow)
-  fail_on_invalid: true           # Fail if validation fails (vs. warn)
+  check_no_overlaps: true
+  check_allowed_regions: true
+  check_quotas: true
+  fail_on_invalid: true
 
-# Overwrite behavior
-overwrite: false  # Fail if output directory exists (unless --overwrite flag)
+overwrite: false
+
 
 # ============================================================================
-# Performance
+# PERFORMANCE (Currently not implemented, reserved for future)
 # ============================================================================
+# These features are not yet implemented but are planned for future releases.
 
-# Parallelism (future enhancement)
 parallel:
-  enabled: false           # Not implemented yet
-  num_workers: 4           # Number of parallel workers
+  enabled: false
+  num_workers: 4
 
-# Caching
 cache:
-  enabled: true            # Cache band calculations and neighbor lists
-  max_cache_size_mb: 100   # Max cache size in MB
+  enabled: true
+  max_cache_size_mb: 100
+
+
+# ============================================================================
+# TROUBLESHOOTING GUIDE
+# ============================================================================
+#
+# Problem: Children are too similar to parents
+# Solution:
+#   - Increase mutation_rate (try 0.4-0.6)
+#   - Increase micro_reseed probability
+#   - Use block_2d or entity_wise crossover
+#   - Increase blocks in block_2d (e.g., 6×6 or 8×8)
+#
+# Problem: Children have poor quality (worse than parents)
+# Solution:
+#   - Decrease mutation_rate (try 0.1-0.2)
+#   - Decrease micro_reseed probability
+#   - Increase repair_max_iters (try 30-50)
+#   - Use bandwise crossover (safer)
+#
+# Problem: Evolution is stuck (no improvement)
+# Solution:
+#   - Increase micro_reseed (try 0.3-0.5)
+#   - Increase micro_reseed_fraction (try 0.2-0.3)
+#   - Add more immigrants in run config
+#   - Try entity_wise crossover for radical changes
+#
+# Problem: Repair is very slow
+# Solution:
+#   - Decrease repair_max_iters (try 10-15)
+#   - Use bandwise crossover (less repair needed)
+#   - Use region_aware crossover (minimal repair)
+#   - Increase allow_radius_reduction tolerance
+#
+# Problem: Children violate allowed regions
+# Solution:
+#   - Use region_aware crossover (guarantees no violations)
+#   - Use bandwise crossover (safer than block_2d)
+#   - Check that parents satisfy region constraints
+#
+# Problem: Band quotas are severely imbalanced
+# Solution:
+#   - Use bandwise crossover (preserves quotas)
+#   - Use region_aware crossover
+#   - Increase max_quota_borrow_percent
+#   - Decrease blocks in block_2d (coarser blocks)
+
+
+# ============================================================================
+# PERFORMANCE TUNING GUIDE
+# ============================================================================
+#
+# For FASTER generation (sacrifice quality):
+#   - repair_max_iters: 10
+#   - crossover_strategy: "bandwise"
+#   - mutation_rate: 0.2
+#   - micro_reseed: 0.1
+#
+# For BETTER quality (slower):
+#   - repair_max_iters: 30-50
+#   - crossover_strategy: "block_2d" with 4×4 or 6×6 blocks
+#   - mutation_rate: 0.3-0.4
+#   - micro_reseed: 0.2-0.3
+#
+# For MAXIMUM diversity (exploration):
+#   - crossover_strategy: "block_2d" or "entity_wise"
+#   - mutation_rate: 0.5-0.7
+#   - micro_reseed: 0.3-0.5
+#   - micro_reseed_fraction: 0.2-0.3
+#   - Add many immigrants (20-30% of population)
+#
+# For MAXIMUM exploitation (refinement):
+#   - crossover_strategy: "bandwise"
+#   - mutation_rate: 0.2-0.3
+#   - within_band_swap: 0.6-0.8
+#   - micro_reseed: 0.0-0.1
+#   - repair_max_iters: 40-60
+#
+# For region-constrained problems:
+#   - crossover_strategy: "region_aware"
+#   - blocks_per_region_x: 2-3
+#   - blocks_per_region_y: 2-3
+#   - All other settings: standard
