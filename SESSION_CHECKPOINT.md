@@ -2,7 +2,7 @@
 
 > **Date**: 2025-10-02
 > **Status**: Phases 1-4 Complete (67% of total roadmap)
-> **Git Commit**: [Pending] - "Add Phase 4: CLI & orchestration system"
+> **Git Commit**: `0ec0d92` - "Add Phase 4: CLI & orchestration system"
 
 ---
 
@@ -161,48 +161,52 @@ ga_integration_plan_for_stratified_placement_system_implementation_guide.md
 
 ---
 
-## ⏳ Remaining Work (Phases 4-6)
+### Phase 4: CLI & Orchestration ✅ **COMPLETE**
 
----
-
-### Phase 4: CLI & Orchestration (NOT STARTED)
-
-**Files to Create**:
+**Files Created**:
 ```
+ga_cli.py                       - Root-level CLI entry point (65 lines)
 ga_ext/
-  cli.py                      - Command-line interface for variant/offspring modes
+  cli.py                        - Config loader and validator (230 lines)
+  orchestration.py              - Variant and offspring modes (472 lines)
+
+examples/
+  variant_run.yaml              - Example variant mode configuration
+  offspring_run.yaml            - Example offspring mode configuration
 ```
 
-**What It Does**:
+**CLI Design**:
+- **Minimal arguments**: Single argument (path to YAML run config)
+- **YAML-based configuration**: All parameters in config files
+- **Two modes**: Variant (mutation-only) and Offspring (crossover + mutation)
 
 **Variant Mode** (single parent → N variants):
 ```bash
-python3 -m ga_ext.cli \
-  --mode variant \
-  --parent layouts/best.csv \
-  --variants 20 \
-  --output-root ga_ext/variants
+python3 ga_cli.py variant_run.yaml
 ```
 
 **Offspring Mode** (multi-parent → children):
 ```bash
-python3 -m ga_ext.cli \
-  --mode offspring \
-  --parents-manifest selected_parents.csv \
-  --children 30 \
-  --immigrants 5 \
-  --output-root ga_ext/gen_001
+python3 ga_cli.py offspring_run.yaml
 ```
 
 **Features**:
-- Argument parsing (modes, parent input, output control)
-- Variant generation (mutation only, no crossover)
-- Offspring generation (crossover + mutation + repair)
-- Immigrant generation (fresh random layouts via existing engine)
-- Lineage logging
-- Progress reporting
+- ✅ YAML configuration loading and validation
+- ✅ Variant generation (mutation only, no crossover)
+- ✅ Offspring generation (crossover + mutation + repair)
+- ✅ Immigrant generation (fresh random layouts via existing engine)
+- ✅ Weighted or uniform parent selection
+- ✅ Complete lineage logging
+- ✅ Progress reporting (every 10 children/variants)
+- ✅ Overwrite control for output files
 
-**Estimated Time**: 3 days
+**Test Coverage**: Integration tested ✅
+- Variant mode: Generated 5 variants successfully
+- Offspring mode: Generated 5 children + 2 immigrants successfully
+
+---
+
+## ⏳ Remaining Work (Phases 5-6)
 
 ---
 
@@ -278,32 +282,48 @@ examples/ga_ext_examples/
 # From project root
 PYTHONPATH=. python3 tests/test_ga_ext/test_io_utils.py
 PYTHONPATH=. python3 tests/test_ga_ext/test_operations.py
+PYTHONPATH=. python3 tests/test_ga_ext/test_repair.py
 ```
 
-Expected: All 32 tests pass ✅
+Expected: All 57 tests pass ✅
 
 ### 3. Next Task to Start
 
-**Immediate next step**: Implement Phase 3 (Repair & Refinement)
+**Immediate next step**: Phase 5 (Validation & Testing) or Phase 6 (Documentation)
 
-**Start here**:
+**Option A - Phase 5 Testing**:
 ```
-1. Create ga_ext/engine_interface.py
-   - Import existing PlacementEngine from src/stratified_placement.py
-   - Wrap conflict detection, validation, distance calculation
-   - Non-invasive: import only, don't modify
+1. Add edge case tests to tests/test_ga_ext/test_cli.py
+   - Dense grids with no free cells
+   - Quota conflicts that can't be resolved
+   - Invalid YAML configurations
+   - Missing parent files
 
-2. Create ga_ext/repair.py
-   - repair_conflicts(): Resolve overlapping positions
-   - repair_quotas(): Balance band quotas
-   - refine_separation(): Improve min distances (limited iterations)
-   - Master function: repair_and_refine()
+2. Create tests/test_ga_ext/test_integration.py
+   - Full variant workflow end-to-end
+   - Full offspring workflow end-to-end
+   - Multi-generation evolution loop
+   - Lineage tracking verification
 
-3. Create tests/test_ga_ext/test_repair.py
-   - Test conflict resolution
-   - Test quota adjustment
-   - Test with intentionally broken children
-   - Verify invariants (no overlaps, quotas met)
+3. Performance benchmarks
+   - Time to generate 100 variants
+   - Time to generate 50 offspring
+   - Memory usage profiling
+```
+
+**Option B - Phase 6 Documentation** (recommended for user testing):
+```
+1. Create ga_ext/README.md
+   - Quick start guide
+   - Installation instructions
+   - Usage examples
+   - Configuration reference
+   - Troubleshooting
+
+2. Create example workflows
+   - Multi-generation evolution
+   - Parent selection strategies
+   - Integration with external evaluators
 ```
 
 ### 4. Development Workflow
@@ -386,9 +406,9 @@ git commit -m "Add engine interface for repair operations"
 | Metric | Current | Target | Status |
 |--------|---------|--------|--------|
 | Test Coverage | 57/57 (100%) | 80%+ | ✅ Excellent |
-| Phases Complete | 3/6 (50%) | 6/6 (100%) | ⏳ In Progress |
-| Documentation | 3 methodology docs | Full user guide | ⏳ Partial |
-| Code Files | 9 modules | ~14 modules | ✅ Good Progress |
+| Phases Complete | 4/6 (67%) | 6/6 (100%) | ⏳ In Progress |
+| Documentation | 3 methodology docs + 2 example configs | Full user guide | ⏳ Partial |
+| Code Files | 12 modules | ~14 modules | ✅ Excellent Progress |
 | Non-Invasiveness | 0 modifications | 0 modifications | ✅ Perfect |
 
 ---
@@ -396,9 +416,9 @@ git commit -m "Add engine interface for repair operations"
 ## 🐛 Known Issues / TODOs
 
 1. ✅ ~~**No repair mechanism yet**~~ - **RESOLVED**: Complete repair pipeline implemented
-2. ⚠️ **No CLI** - Cannot run variant/offspring modes from command line
-3. ⚠️ **No immigrant generation** - Cannot inject fresh random layouts
-4. ⚠️ **No user documentation** - Methodology docs exist, but no usage guide
+2. ✅ ~~**No CLI**~~ - **RESOLVED**: YAML-based CLI with variant/offspring modes
+3. ✅ ~~**No immigrant generation**~~ - **RESOLVED**: Implemented in orchestration.py
+4. ⚠️ **No user documentation** - Methodology docs exist, but need comprehensive README
 
 ---
 
@@ -408,10 +428,11 @@ git commit -m "Add engine interface for repair operations"
 
 **Data flow**:
 ```
-CSV → Individual (data_models.py) → Partition (band_utils.py)
-  → Crossover (crossover.py) → Mutation (mutation.py)
-    → [Repair - NOT IMPLEMENTED] → Save CSV (io_utils.py)
-      → Lineage Log
+YAML Config (cli.py) → Load Parents (io_utils.py)
+  → Individual (data_models.py) → Partition (band_utils.py)
+    → Crossover (crossover.py) → Mutation (mutation.py)
+      → Repair (repair.py) → Save CSV (io_utils.py)
+        → Lineage Log
 ```
 
 **Key abstractions**:
@@ -495,30 +516,35 @@ cat GA_IMPLEMENTATION_ROADMAP.md | grep "Phase"
 - ✅ Band-aware partitioning (Phase 2)
 - ✅ Three crossover strategies (Phase 2)
 - ✅ Three mutation operators (Phase 2)
-- ✅ **Repair & refinement system (Phase 3)** ⭐ NEW
-- ✅ **Engine interface wrapper (Phase 3)** ⭐ NEW
+- ✅ Repair & refinement system (Phase 3)
+- ✅ Engine interface wrapper (Phase 3)
+- ✅ **YAML-based CLI system (Phase 4)** ⭐ NEW
+- ✅ **Variant & offspring modes (Phase 4)** ⭐ NEW
+- ✅ **Immigrant generation (Phase 4)** ⭐ NEW
 - ✅ Comprehensive tests (57/57 passing)
 - ✅ Methodology documentation
+- ✅ Example YAML configurations
 
 **What's Next**:
-- ⏳ Command-line interface (Phase 4)
-- ⏳ Variant & offspring modes (Phase 4)
-- ⏳ Immigrant generation (Phase 4)
+- ⏳ Edge case testing (Phase 5)
 - ⏳ Integration tests (Phase 5)
-- ⏳ User documentation (Phase 6)
+- ⏳ User documentation & README (Phase 6)
+- ⏳ Example workflows (Phase 6)
 
 **How to Continue**:
 1. Read this file (SESSION_CHECKPOINT.md)
-2. Review GA_IMPLEMENTATION_ROADMAP.md Phase 4
-3. Start with `ga_ext/cli.py`
-4. Implement variant mode, then offspring mode
-5. Test as you go
-6. Update this file when phase complete
+2. See `ga_ext/README.md` for usage guide (when created)
+3. Review Phase 5 in GA_IMPLEMENTATION_ROADMAP.md
+4. Add edge case tests and integration tests
+5. Achieve 80%+ test coverage
+6. Create comprehensive user documentation
 
-**Estimated Remaining Time**: ~8 days (3+3+2 for Phases 4-6)
+**Estimated Remaining Time**: ~5 days (3+2 for Phases 5-6)
 
 ---
 
-**Git Commit Reference**: `24e7a1d` - "Add Phase 3: Repair & refinement system"
+**Git Commit References**:
+- Phase 3: `24e7a1d` - "Add Phase 3: Repair & refinement system"
+- Phase 4: `0ec0d92` - "Add Phase 4: CLI & orchestration system"
 
 **Last Updated**: 2025-10-02

@@ -16,69 +16,65 @@ mode: "offspring"
 input:
   # OPTION 1: Parent manifest with scores/weights (recommended)
   # Allows weighted parent selection based on external fitness
-  parents_manifest: "ga_ext/gen_000/selected_parents.csv"
+  parents_manifest: "parents.csv"
 
   # OPTION 2: All CSVs from a directory (uncomment to use)
-  # Uses uniform random parent selection
-  # parents_dir: "ga_ext/gen_000"
+  # All CSVs will be loaded with equal weight
+  # parents_dir: "ga_output/variants"
 
   # NOTE: Specify EITHER parents_manifest OR parents_dir, not both
 
 # Output configuration
 output:
-  root: "ga_ext/gen_001"
+  output_root: "ga_output/generation_001"
   # If this directory exists, set overwrite to true
-  overwrite: false
+  overwrite: true
 
 # Generation parameters
 generation:
   # Number of children to generate via crossover + mutation
-  children: 30
+  num_children: 20
 
-  # Number of fresh random layouts to generate for diversity
+  # Number of fresh random layouts to generate for diversity (optional)
   # These are created using the existing PlacementEngine
-  # Set to 0 if you don't want immigrants
-  immigrants: 5
+  # Set to 0 or omit if you don't want immigrants
+  num_immigrants: 5
 
-# References to system configuration files
-placement_config: "config.yaml"        # Grid, entities, bands, constraints
-ga_config: "ga_ext/ga_ext_config.yaml" # Crossover, mutation, repair params
+  # Parent selection strategy: 'weighted' or 'uniform'
+  # 'weighted' uses weights from manifest (if available)
+  # 'uniform' treats all parents equally
+  parent_selection: "weighted"
 
-# Random seed for reproducibility
-# - Set to an integer for reproducible results
-# - Set to null for random seed (different results each run)
-random_seed: 42
+# GA configuration reference
+ga_config:
+  config_path: "ga_ext/ga_ext_config.yaml"
+  # This file controls crossover strategy, mutation probabilities, repair params
 
 # ============================================================================
 # Parent Manifest Format (if using parents_manifest)
 # ============================================================================
-# The manifest is a CSV file with the following columns:
+# Create a CSV file with the following format:
 #
-#   id,path,score,weight,tags
-#   parent_001,ga_ext/gen_000/ind_001.csv,0.89,1.0,elite
-#   parent_002,ga_ext/gen_000/ind_005.csv,0.85,0.8,diverse
+#   csv_path,score,weight
+#   ga_output/variants/variant_003.csv,0.89,1.0
+#   ga_output/variants/variant_007.csv,0.92,2.0
+#   output/placement_final.csv,0.85,0.5
 #
-# - id: Unique identifier for the parent
-# - path: Path to CSV layout (relative or absolute)
-# - score: External fitness score (logged but not used for selection)
-# - weight: Sampling weight (higher = more likely to be selected as parent)
-# - tags: Optional metadata
+# - csv_path: Path to parent layout CSV (relative or absolute)
+# - score: External fitness score (optional, for your reference)
+# - weight: Selection probability (higher = more likely to be chosen as parent)
 #
-# See ga_ext/io_utils.py:load_parent_manifest() for details
-
-# ============================================================================
-# Advanced Options (can be omitted - will use defaults from ga_config)
-# ============================================================================
-
-# These parameters override values in ga_ext_config.yaml if specified here:
-# crossover_rate: 0.7       # Probability of crossover vs. direct copy
-# mutation_rate: 0.3        # Probability of mutation per child
-# repair_max_iters: 20      # Max iterations for separation refinement
+# The weights don't need to sum to 1.0; they're relative probabilities.
 
 # ============================================================================
 # Expected Output
 # ============================================================================
-# After running, you will find in ga_ext/gen_001/:
-#   - child_000.csv, child_001.csv, ... child_029.csv (30 children)
+# After running, you will find in ga_output/generation_001/:
+#   - child_000.csv, child_001.csv, ... child_019.csv (20 children)
 #   - immigrant_000.csv, immigrant_001.csv, ... immigrant_004.csv (5 immigrants)
-#   - lineage_log.csv (full provenance for all individuals)
+#   - lineage.csv (full provenance for all individuals)
+#
+# Next steps:
+#   1. Evaluate all layouts with your external evaluator
+#   2. Create new parent manifest from best performers
+#   3. Generate next generation (generation_002)

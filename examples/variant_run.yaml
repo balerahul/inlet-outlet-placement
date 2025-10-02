@@ -14,42 +14,35 @@ mode: "variant"
 
 # Input: Single parent layout
 input:
-  parent: "layouts/best_layout.csv"
+  parent_csv: "output/placement_final.csv"
   # The parent CSV must exist and contain valid placement data
+  # Generate one with: python3 main.py
 
 # Output configuration
 output:
-  root: "ga_ext/variant_001"
+  output_root: "ga_output/variants"
   # If this directory exists, set overwrite to true
-  overwrite: false
+  overwrite: true
 
 # Generation parameters
 generation:
   # Number of variants to generate from the parent
-  variants: 20
+  num_variants: 10
   # Each variant will have mutation applied (no crossover)
 
-# References to system configuration files
-# These control grid parameters, entities, and GA operations
-placement_config: "config.yaml"        # Grid, entities, bands, constraints
-ga_config: "ga_ext/ga_ext_config.yaml" # Mutation, crossover, repair params
-
-# Random seed for reproducibility
-# - Set to an integer for reproducible results
-# - Set to null for random seed (different results each run)
-random_seed: null
-
-# ============================================================================
-# Advanced Options (can be omitted - will use defaults from ga_config)
-# ============================================================================
-
-# These parameters override values in ga_ext_config.yaml if specified here:
-# mutation_rate: 0.3        # Probability of mutation per variant
-# repair_max_iters: 20      # Max iterations for separation refinement
+# GA configuration reference
+ga_config:
+  config_path: "ga_ext/ga_ext_config.yaml"
+  # This file controls mutation probabilities, crossover strategy, repair params
 
 # ============================================================================
 # Expected Output
 # ============================================================================
-# After running, you will find in ga_ext/variant_001/:
-#   - variant_000.csv, variant_001.csv, ... variant_019.csv
-#   - lineage_log.csv (provenance information for all variants)
+# After running, you will find in ga_output/variants/:
+#   - variant_000.csv, variant_001.csv, ... variant_009.csv
+#   - lineage.csv (provenance information for all variants)
+#
+# Next steps:
+#   1. Evaluate all variants with your external evaluator (CFD, ML, etc.)
+#   2. Select best performers and create a parent manifest
+#   3. Use offspring mode to generate next generation
