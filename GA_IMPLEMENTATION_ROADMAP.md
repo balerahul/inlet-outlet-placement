@@ -390,138 +390,446 @@ def repair_and_refine(
 ### Phase 4: CLI & Orchestration (Days 9-11)
 **Goal**: Create user-facing tool with two modes (variant/offspring)
 
-#### 4.1 CLI Interface (`ga_ext/cli.py`)
+#### 4.1 CLI Interface (Minimal YAML-Based Design)
 
+**Architecture**: Consistent with existing `main.py` pattern - all parameters in YAML configuration files.
+
+**File Structure**:
+```
+ga_cli.py                       # Root-level CLI entry point (~20 lines)
+ga_ext/
+  cli.py                        # CLI logic & run config loading
+  orchestration.py              # Variant/offspring mode implementations
+```
+
+**Usage** (Minimal CLI):
 ```bash
-# Variant Mode (single parent → N variants)
-python3 -m ga_ext.cli \
-  --mode variant \
-  --parent layouts/best_layout.csv \
-  --variants 10 \
-  --output-root ga_ext/variant_001 \
-  --config ga_ext/ga_ext_config.yaml
+# Only argument: run configuration file
+python3 ga_cli.py variant_run.yaml
+python3 ga_cli.py offspring_run.yaml
 
-# Offspring Mode (multi-parent → children)
-python3 -m ga_ext.cli \
-  --mode offspring \
-  --parents-manifest layouts/selected_parents.csv \
-  --children 20 \
-  --output-root ga_ext/gen_001 \
-  --config ga_ext/ga_ext_config.yaml
-
-# With immigrants (fresh random layouts)
-python3 -m ga_ext.cli \
-  --mode offspring \
-  --parents-dir ga_ext/gen_000 \
-  --children 15 \
-  --immigrants 3 \
-  --output-root ga_ext/gen_001
+# Optional explicit flag
+python3 ga_cli.py --config variant_run.yaml
 ```
 
-##### CLI Arguments
+##### Run Configuration Files
+
+**Variant Mode** (`variant_run.yaml`):
+```yaml
+# Run configuration for variant mode
+mode: "variant"
+
+input:
+  parent: "layouts/best_layout.csv"
+
+output:
+  root: "ga_ext/variant_001"
+  overwrite: false
+
+generation:
+  variants: 20
+
+# References to system configs
+placement_config: "config.yaml"        # Grid, entities, bands
+ga_config: "ga_ext/ga_ext_config.yaml" # Mutation, crossover params
+
+# Optional overrides
+random_seed: null  # null = random, int = fixed seed
+```
+
+**Offspring Mode** (`offspring_run.yaml`):
+```yaml
+# Run configuration for offspring mode
+mode: "offspring"
+
+input:
+  # Option 1: Manifest with scores/weights
+  parents_manifest: "ga_ext/gen_000/selected_parents.csv"
+
+  # Option 2: All CSVs from directory (uncomment to use)
+  # parents_dir: "ga_ext/gen_000"
+
+output:
+  root: "ga_ext/gen_001"
+  overwrite: false
+
+generation:
+  children: 30
+  immigrants: 5
+
+# References to system configs
+placement_config: "config.yaml"
+ga_config: "ga_ext/ga_ext_config.yaml"
+
+random_seed: 42
+```
+
+##### CLI Implementation
+
+**`ga_cli.py`** (Root entry point):
 ```python
-parser.add_argument("--mode", choices=["variant", "offspring"], required=True)
-parser.add_argument("--parent", type=Path, help="Single parent for variant mode")
-parser.add_argument("--parents-manifest", type=Path, help="CSV with parent info")
-parser.add_argument("--parents-dir", type=Path, help="Directory of parent CSVs")
-parser.add_argument("--variants", type=int, help="Number of variants (variant mode)")
-parser.add_argument("--children", type=int, help="Number of children (offspring mode)")
-parser.add_argument("--immigrants", type=int, default=0)
-parser.add_argument("--output-root", type=Path, required=True)
-parser.add_argument("--config", type=Path, default="ga_ext/ga_ext_config.yaml")
-parser.add_argument("--seed", type=int, help="Override config random seed")
-parser.add_argument("--overwrite", action="store_true")
+#!/usr/bin/env python3
+"""
+GA Evolution CLI - Minimal entry point.
+
+Usage:
+    python3 ga_cli.py run_config.yaml
+    python3 ga_cli.py --config run_config.yaml
+"""
+
+import sys
+from ga_ext.cli import run_from_config
+
+if __name__ == '__main__':
+    if len(sys.argv) < 2 or sys.argv[1] in ['-h', '--help']:
+        print(__doc__)
+        sys.exit(0 if len(sys.argv) > 1 else 1)
+
+    config_path = sys.argv[1]
+    if config_path.startswith('--config='):
+        config_path = config_path.split('=')[1]
+    elif config_path == '--config':
+        config_path = sys.argv[2]
+
+    run_from_config(config_path)
 ```
 
-#### 4.2 Orchestration Logic
+**`ga_ext/cli.py`** (Main logic):
+```python
+def load_run_config(config_path: str) -> dict:
+    """Load and validate run configuration."""
+    with open(config_path, 'r') as f:
+        config = yaml.safe_load(f)
+
+    # Validate required fields
+    required_fields = ['mode', 'input', 'output', 'generation']
+    for field in required_fields:
+        if field not in config:
+            raise ValueError(f"Missing required field: {field}")
+
+    return config
+
+def run_from_config(config_path: str):
+    """Load run config and execute appropriate mode."""
+    config = load_run_config(config_path)
+
+    mode = config['mode']
+
+    if mode == 'variant':
+        from .orchestration import run_variant_mode
+        run_variant_mode(config)
+    elif mode == 'offspring':
+        from .orchestration import run_offspring_mode
+        run_offspring_mode(config)
+    else:
+        raise ValueError(f"Invalid mode: {mode}. Must be 'variant' or 'offspring'")
+```
+
+**Benefits**:
+- ✅ Minimal CLI (just pass config file)
+- ✅ Reproducible (config files are self-documenting)
+- ✅ Versionable (commit run configs to git)
+- ✅ Consistent with existing `main.py` + `config.yaml` pattern
+- ✅ Batch-friendly (easy to run multiple configurations)
+
+#### 4.2 Orchestration Logic (`ga_ext/orchestration.py`)
 
 ##### Variant Mode
 ```python
-def run_variant_mode(
-    parent: Individual,
-    num_variants: int,
-    config: dict,
-    output_root: Path,
-    rng: np.random.Generator
-) -> tuple[list[Individual], list[LineageRecord]]:
+def run_variant_mode(run_config: dict):
     """
     Generate mutated variants from single parent.
 
+    Args:
+        run_config: Run configuration dict from YAML
+
     Algorithm:
-    1. Load parent CSV
-    2. For i in range(num_variants):
+    1. Load GA config and placement config (from run_config references)
+    2. Setup RNG (use run_config['random_seed'] or ga_config seed)
+    3. Load parent CSV from run_config['input']['parent']
+    4. Create output directory: run_config['output']['root']
+    5. For i in range(run_config['generation']['variants']):
        a. Copy parent
        b. Apply mutation (no crossover)
        c. Repair & refine
        d. Save to output_root/variant_{i:03d}.csv
-       e. Record lineage
-    3. Save lineage log
+       e. Create LineageRecord
+    6. Save lineage log to output_root/lineage_log.csv
+    7. Print summary report
 
     Returns:
-        (children_list, lineage_records)
+        None (writes to disk)
     """
+    # Load configs
+    ga_config = load_config(run_config.get('ga_config', 'ga_ext/ga_ext_config.yaml'))
+    placement_config_path = run_config.get('placement_config', 'config.yaml')
+
+    # Setup RNG
+    seed = run_config.get('random_seed', ga_config.get('random_seed'))
+    if seed is None:
+        seed = np.random.randint(0, 2**31)
+    rng = np.random.default_rng(seed)
+
+    # Load parent
+    parent_path = run_config['input']['parent']
+    parent = load_csv_to_individual(parent_path)
+
+    # Create output directory
+    output_root = Path(run_config['output']['root'])
+    output_root.mkdir(parents=True, exist_ok=run_config['output'].get('overwrite', False))
+
+    # Generate variants
+    num_variants = run_config['generation']['variants']
+    children = []
+    lineage_records = []
+
+    for i in range(num_variants):
+        # Copy and mutate
+        child = parent.copy()
+        child.id = f"variant_{i:03d}"
+
+        # Apply mutation
+        child, mutation_ops = mutate(child, ga_config, grid_config, band_config, rng)
+
+        # Repair & refine
+        child = repair_and_refine(child, placement_config_path, ga_config, rng)
+
+        # Save
+        child_path = output_root / f"variant_{i:03d}.csv"
+        save_individual_to_csv(child, child_path)
+
+        # Record lineage
+        lineage_records.append(
+            LineageRecord(
+                child_path=child_path,
+                parent_ids=[parent.id],
+                mode='variant',
+                crossover_mask=None,
+                mutation_ops=mutation_ops,
+                repair_notes=child.metadata.get('repair_notes', ''),
+                seed=seed + i
+            )
+        )
+
+        children.append(child)
+
+    # Save lineage
+    save_lineage_log(lineage_records, output_root / 'lineage_log.csv')
+
+    # Print summary
+    print(f"Generated {len(children)} variants in {output_root}")
 ```
 
 ##### Offspring Mode
 ```python
-def run_offspring_mode(
-    parents: list[Individual],
-    num_children: int,
-    num_immigrants: int,
-    config: dict,
-    output_root: Path,
-    rng: np.random.Generator
-) -> tuple[list[Individual], list[LineageRecord]]:
+def run_offspring_mode(run_config: dict):
     """
     Generate children from parent set via crossover + mutation.
 
+    Args:
+        run_config: Run configuration dict from YAML
+
     Algorithm:
-    1. Load parents (from manifest or directory)
-    2. For i in range(num_children):
+    1. Load GA config and placement config
+    2. Setup RNG
+    3. Load parents (from manifest or directory)
+    4. Create output directory
+    5. For i in range(run_config['generation']['children']):
        a. Select two parents (uniform random or weighted if manifest provides)
        b. Apply crossover (bandwise or block_2d)
        c. Apply mutation (with probability)
        d. Repair & refine
        e. Save to output_root/child_{i:03d}.csv
-       f. Record lineage (parent IDs, crossover mask, mutation ops)
-    3. Generate immigrants (if requested):
-       a. Call existing main.py to generate fresh layouts
+       f. Create LineageRecord (parent IDs, crossover mask, mutation ops)
+    6. Generate immigrants (if requested):
+       a. Use PlacementEngine to generate fresh random layouts
        b. Save as output_root/immigrant_{j:03d}.csv
-    4. Save lineage log
+    7. Save lineage log
+    8. Print summary report
 
     Returns:
-        (children_list, lineage_records)
+        None (writes to disk)
     """
+    # Load configs
+    ga_config = load_config(run_config.get('ga_config', 'ga_ext/ga_ext_config.yaml'))
+    placement_config_path = run_config.get('placement_config', 'config.yaml')
+
+    # Setup RNG
+    seed = run_config.get('random_seed', ga_config.get('random_seed'))
+    if seed is None:
+        seed = np.random.randint(0, 2**31)
+    rng = np.random.default_rng(seed)
+
+    # Load parents
+    input_config = run_config['input']
+    if 'parents_manifest' in input_config:
+        parent_manifest = load_parent_manifest(input_config['parents_manifest'])
+        parents = parent_manifest.parents
+        weights = parent_manifest.get_weights()
+    elif 'parents_dir' in input_config:
+        parents = load_parents_from_directory(input_config['parents_dir'])
+        weights = None
+    else:
+        raise ValueError("Must specify either 'parents_manifest' or 'parents_dir'")
+
+    # Create output directory
+    output_root = Path(run_config['output']['root'])
+    output_root.mkdir(parents=True, exist_ok=run_config['output'].get('overwrite', False))
+
+    # Generate children
+    num_children = run_config['generation']['children']
+    children = []
+    lineage_records = []
+
+    for i in range(num_children):
+        # Select parents
+        parent_a, parent_b = select_two_parents(parents, weights, rng)
+
+        # Crossover
+        child, crossover_mask = bandwise_crossover(
+            parent_a, parent_b, ga_config, grid_config, band_config, rng
+        )
+        child.id = f"child_{i:03d}"
+
+        # Mutation (with probability)
+        mutation_ops = []
+        if rng.random() < ga_config.get('mutation_rate', 0.3):
+            child, mutation_ops = mutate(child, ga_config, grid_config, band_config, rng)
+
+        # Repair & refine
+        child = repair_and_refine(child, placement_config_path, ga_config, rng)
+
+        # Save
+        child_path = output_root / f"child_{i:03d}.csv"
+        save_individual_to_csv(child, child_path)
+
+        # Record lineage
+        lineage_records.append(
+            LineageRecord(
+                child_path=child_path,
+                parent_ids=[parent_a.id, parent_b.id],
+                mode='offspring',
+                crossover_mask=crossover_mask,
+                mutation_ops=mutation_ops,
+                repair_notes=child.metadata.get('repair_notes', ''),
+                seed=seed + i
+            )
+        )
+
+        children.append(child)
+
+    # Generate immigrants
+    num_immigrants = run_config['generation'].get('immigrants', 0)
+    if num_immigrants > 0:
+        immigrants = generate_immigrants(
+            num_immigrants, placement_config_path, output_root, rng
+        )
+        lineage_records.extend([
+            create_immigrant_record(imm.path, seed + num_children + j)
+            for j, imm in enumerate(immigrants)
+        ])
+
+    # Save lineage
+    save_lineage_log(lineage_records, output_root / 'lineage_log.csv')
+
+    # Print summary
+    print(f"Generated {num_children} children + {num_immigrants} immigrants in {output_root}")
 ```
 
-##### Immigrant Generation
+##### Helper Functions
+
 ```python
+def select_two_parents(
+    parents: list[Individual],
+    weights: Optional[list[float]],
+    rng: np.random.Generator
+) -> tuple[Individual, Individual]:
+    """
+    Select two distinct parents for crossover.
+
+    Uses weighted sampling if weights provided, else uniform random.
+    """
+    if weights:
+        # Weighted random selection
+        idx_a = rng.choice(len(parents), p=weights/np.sum(weights))
+        # Ensure different parent for idx_b
+        remaining_indices = [i for i in range(len(parents)) if i != idx_a]
+        remaining_weights = [weights[i] for i in remaining_indices]
+        idx_b = remaining_indices[
+            rng.choice(len(remaining_indices), p=remaining_weights/np.sum(remaining_weights))
+        ]
+    else:
+        # Uniform random selection (without replacement)
+        idx_a, idx_b = rng.choice(len(parents), size=2, replace=False)
+
+    return parents[idx_a], parents[idx_b]
+
+
 def generate_immigrants(
     num_immigrants: int,
-    config_path: Path,
+    config_path: str,
     output_root: Path,
     rng: np.random.Generator
 ) -> list[Individual]:
     """
-    Generate fresh random layouts using existing engine.
+    Generate fresh random layouts using existing placement engine.
 
     Implementation:
     - Import from src.config_loader
-    - Create PlacementEngine instance
-    - Run placement for each immigrant
-    - Save CSVs
+    - Create PlacementEngine instance for each immigrant (with different seeds)
+    - Run placement
+    - Save CSVs to output_root/immigrant_{j:03d}.csv
     - Return as Individual objects
 
     This maintains diversity without external input.
     """
+    from src.config_loader import create_placement_engine_from_config
+
+    immigrants = []
+
+    for j in range(num_immigrants):
+        # Create engine with unique seed
+        seed = int(rng.integers(0, 2**31))
+        engine = create_placement_engine_from_config(
+            config_path=config_path,
+            random_seed=seed
+        )
+
+        # Generate placement
+        result = engine.place_all_entities()
+
+        # Convert to Individual
+        immigrant_path = output_root / f"immigrant_{j:03d}.csv"
+        placements_dict = {
+            entity_type.value: [(cell.x, cell.y) for cell in cells]
+            for entity_type, cells in result.placements.items()
+        }
+
+        immigrant = Individual(
+            id=f"immigrant_{j:03d}",
+            path=immigrant_path,
+            placements=placements_dict,
+            metadata={'generated_by': 'PlacementEngine', 'seed': seed}
+        )
+
+        # Save to CSV
+        save_individual_to_csv(immigrant, immigrant_path)
+        immigrants.append(immigrant)
+
+    return immigrants
 ```
 
 **Deliverables**:
-- ✅ CLI with comprehensive argument parsing
+- ✅ Root-level `ga_cli.py` script (minimal CLI)
+- ✅ `ga_ext/cli.py` (config loading and mode dispatching)
+- ✅ `ga_ext/orchestration.py` (variant and offspring mode implementations)
+- ✅ YAML run configuration system
 - ✅ Variant mode implementation
 - ✅ Offspring mode implementation
+- ✅ Parent selection (weighted/uniform)
 - ✅ Immigrant generation via existing engine
 - ✅ Lineage logging with full provenance
+- ✅ Example run config files (variant_run.yaml, offspring_run.yaml)
 
 ---
 
@@ -744,14 +1052,24 @@ subprocess.run([
     "--seed", "42"
 ])
 
+# Create variant run config
+with open('variant_run.yaml', 'w') as f:
+    f.write("""
+mode: variant
+input:
+  parent: ga_ext/initial.csv
+output:
+  root: ga_ext/variants
+  overwrite: false
+generation:
+  variants: 50
+placement_config: config.yaml
+ga_config: ga_ext/ga_ext_config.yaml
+random_seed: null
+""")
+
 # Generate 50 variants
-subprocess.run([
-    "python3", "-m", "ga_ext.cli",
-    "--mode", "variant",
-    "--parent", "ga_ext/initial.csv",
-    "--variants", "50",
-    "--output-root", "ga_ext/variants"
-])
+subprocess.run(["python3", "ga_cli.py", "variant_run.yaml"])
 
 # Analyze variants (external evaluator)
 # ... your analysis code here
@@ -787,15 +1105,25 @@ for gen in range(1, 11):
     # Create manifest
     create_manifest(parent_paths, f"ga_ext/gen_{gen:03d}/parents.csv")
 
+    # Create offspring run config
+    with open(f'offspring_gen_{gen:03d}.yaml', 'w') as f:
+        f.write(f"""
+mode: offspring
+input:
+  parents_manifest: ga_ext/gen_{gen:03d}/parents.csv
+output:
+  root: ga_ext/gen_{gen:03d}
+  overwrite: false
+generation:
+  children: 40
+  immigrants: 10
+placement_config: config.yaml
+ga_config: ga_ext/ga_ext_config.yaml
+random_seed: {gen * 1000}
+""")
+
     # Generate offspring
-    subprocess.run([
-        "python3", "-m", "ga_ext.cli",
-        "--mode", "offspring",
-        "--parents-manifest", f"ga_ext/gen_{gen:03d}/parents.csv",
-        "--children", "40",
-        "--immigrants", "10",
-        "--output-root", f"ga_ext/gen_{gen:03d}"
-    ])
+    subprocess.run(["python3", "ga_cli.py", f"offspring_gen_{gen:03d}.yaml"])
 ```
 
 **Deliverables**:
@@ -829,12 +1157,16 @@ for gen in range(1, 11):
 - [ ] Validate repair invariants (no overlaps, regions respected)
 
 ### Phase 4: CLI ✓
-- [ ] Implement `cli.py` with argument parsing
+- [ ] Create `ga_cli.py` root-level script (minimal CLI)
+- [ ] Implement `ga_ext/cli.py` (YAML config loading and mode dispatching)
+- [ ] Implement `ga_ext/orchestration.py` (variant and offspring modes)
+- [ ] Create example run config files (variant_run.yaml, offspring_run.yaml)
 - [ ] Implement variant mode orchestration
 - [ ] Implement offspring mode orchestration
+- [ ] Implement parent selection (weighted/uniform)
 - [ ] Implement immigrant generation
 - [ ] Write lineage logging
-- [ ] Test CLI end-to-end
+- [ ] Test CLI end-to-end with YAML configs
 
 ### Phase 5: Testing ✓
 - [ ] Write 20+ unit tests
