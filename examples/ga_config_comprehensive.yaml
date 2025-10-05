@@ -65,12 +65,12 @@ generation:
 #
 # input:
 #   # OPTION 1: Parent manifest file (recommended for weighted selection)
-#   # This is a CSV file with columns: csv_path, score, weight
-#   # Example:
-#   #   csv_path,score,weight
-#   #   ga_output/variants/variant_003.csv,0.89,1.0
-#   #   ga_output/variants/variant_007.csv,0.92,2.0
-#   #   output/placement_final.csv,0.85,0.5
+#   # This is a CSV file with columns: id, path, score, weight
+#   # Example manifest file format (parents.csv):
+#   #   id,path,score,weight
+#   #   variant_003,ga_output/variants/variant_003.csv,0.89,2.0
+#   #   variant_007,ga_output/variants/variant_007.csv,0.92,3.0
+#   #   parent_001,output/placement_final.csv,0.85,1.0
 #   parents_manifest: "parents.csv"
 #
 #   # OPTION 2: Parent directory (all CSVs will be used with equal weight)
@@ -237,10 +237,10 @@ random_seed: null
 # Goal: Combine best layouts and evolve over multiple generations
 #
 # 1. After evaluating variants, create parent manifest (parents.csv):
-#      csv_path,score,weight
-#      ga_output/explore/variant_003.csv,0.89,1.0
-#      ga_output/explore/variant_007.csv,0.92,2.0
-#      ga_output/explore/variant_012.csv,0.88,1.5
+#      id,path,score,weight
+#      variant_003,ga_output/explore/variant_003.csv,0.89,1.0
+#      variant_007,ga_output/explore/variant_007.csv,0.92,2.0
+#      variant_012,ga_output/explore/variant_012.csv,0.88,1.5
 #
 # 2. Create config (gen_001.yaml):
 #      mode: offspring
@@ -430,10 +430,10 @@ random_seed: null
 # top_5 = results[:5]
 #
 # with open("parents_gen_002.csv", "w") as f:
-#     f.write("csv_path,score,weight\n")
-#     for path, score in top_5:
+#     f.write("id,path,score,weight\n")
+#     for i, (path, score) in enumerate(top_5):
 #         weight = score  # Use score as weight (higher score = more likely)
-#         f.write(f"{path},{score},{weight}\n")
+#         f.write(f"parent_{i:03d},{path},{score},{weight}\n")
 
 
 # ============================================================================

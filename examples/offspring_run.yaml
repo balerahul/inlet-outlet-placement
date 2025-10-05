@@ -16,11 +16,23 @@ mode: "offspring"
 input:
   # OPTION 1: Parent manifest with scores/weights (recommended)
   # Allows weighted parent selection based on external fitness
-  parents_manifest: "parents.csv"
+  # parents_manifest: "parents.csv"
+  #
+  # Sample manifest file format (parents.csv):
+  #   id,path,score,weight
+  #   variant_003,ga_output/variants/variant_003.csv,0.89,2.0
+  #   variant_007,ga_output/variants/variant_007.csv,0.92,3.0
+  #   parent_001,output/placement_final.csv,0.85,1.0
+  #
+  # Fields:
+  #   - id: Unique identifier for the parent
+  #   - path: Path to parent CSV file (relative or absolute)
+  #   - score: External fitness score (optional, for reference)
+  #   - weight: Selection probability (higher = more likely chosen)
 
   # OPTION 2: All CSVs from a directory (uncomment to use)
   # All CSVs will be loaded with equal weight
-  # parents_dir: "ga_output/variants"
+  parents_dir: "tmp/"
 
   # NOTE: Specify EITHER parents_manifest OR parents_dir, not both
 
@@ -33,7 +45,7 @@ output:
 # Generation parameters
 generation:
   # Number of children to generate via crossover + mutation
-  children: 20
+  children: 10
 
   # Number of fresh random layouts to generate for diversity (optional)
   # These are created using the existing PlacementEngine
@@ -53,16 +65,23 @@ random_seed: 42
 # ============================================================================
 # Create a CSV file with the following format:
 #
-#   csv_path,score,weight
-#   ga_output/variants/variant_003.csv,0.89,1.0
-#   ga_output/variants/variant_007.csv,0.92,2.0
-#   output/placement_final.csv,0.85,0.5
+#   id,path,score,weight
+#   variant_003,ga_output/variants/variant_003.csv,0.89,2.0
+#   variant_007,ga_output/variants/variant_007.csv,0.92,3.0
+#   parent_001,output/placement_final.csv,0.85,1.0
 #
-# - csv_path: Path to parent layout CSV (relative or absolute)
-# - score: External fitness score (optional, for your reference)
+# Required columns:
+# - id: Unique identifier for the parent (e.g., "variant_003", "parent_001")
+# - path: Path to parent layout CSV (relative or absolute)
+#
+# Optional columns:
+# - score: External fitness score (for your reference)
 # - weight: Selection probability (higher = more likely to be chosen as parent)
+#           If omitted, defaults to 1.0 (equal probability)
 #
-# The weights don't need to sum to 1.0; they're relative probabilities.
+# Notes:
+# - Weights don't need to sum to 1.0; they're relative probabilities
+# - Relative paths are resolved relative to the manifest file's directory
 
 # ============================================================================
 # Expected Output

@@ -89,13 +89,14 @@ Use your external evaluator (CFD solver, ML model, etc.) to score each variant:
 Select the best layouts and create a parent manifest (`parents.csv`):
 
 ```csv
-csv_path,score,weight
-ga_output/variants/variant_003.csv,0.89,1.0
-ga_output/variants/variant_007.csv,0.92,2.0
-output/placement_final.csv,0.85,1.0
+id,path,score,weight
+variant_003,ga_output/variants/variant_003.csv,0.89,1.0
+variant_007,ga_output/variants/variant_007.csv,0.92,2.0
+parent_001,output/placement_final.csv,0.85,1.0
 ```
 
-- **csv_path**: Path to parent layout
+- **id**: Unique identifier for the parent (required)
+- **path**: Path to parent layout CSV (required)
 - **score**: Fitness score (optional, for your reference)
 - **weight**: Selection probability (higher = more likely to be chosen)
 
@@ -321,13 +322,13 @@ placement_config_path: custom_config.yaml
 
 ### Weighted Parent Selection
 
-When using `parent_selection: weighted`, parents with higher weights are more likely to be selected:
+When using weighted parent selection, parents with higher weights are more likely to be selected:
 
 ```csv
-csv_path,score,weight
-parent1.csv,0.85,1.0
-parent2.csv,0.92,3.0  # 3x more likely to be selected
-parent3.csv,0.78,0.5
+id,path,score,weight
+parent_001,parent1.csv,0.85,1.0
+parent_002,parent2.csv,0.92,3.0  # 3x more likely to be selected
+parent_003,parent3.csv,0.78,0.5
 ```
 
 ### Controlling Randomness
@@ -365,9 +366,10 @@ def create_parent_manifest(layouts_with_scores, output_path):
 
     with open(output_path, 'w', newline='') as f:
         writer = csv.writer(f)
-        writer.writerow(['csv_path', 'score', 'weight'])
-        for path, score in top_layouts:
-            writer.writerow([path, score, 1.0])
+        writer.writerow(['id', 'path', 'score', 'weight'])
+        for i, (path, score) in enumerate(top_layouts):
+            parent_id = f"parent_{i:03d}"
+            writer.writerow([parent_id, path, score, 1.0])
 
 # Multi-generation loop
 for gen in range(10):
