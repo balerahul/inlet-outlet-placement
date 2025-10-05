@@ -178,7 +178,7 @@ crossover_strategy: "bandwise"
 # ============================================================================
 
 block_2d:
-  blocks_x: 4
+  blocks_x: 6
   # Number of DIVISIONS along X-axis (horizontal)
   # Grid is divided into this many vertical stripes
   #
@@ -228,7 +228,7 @@ block_2d:
 # ============================================================================
 
 region_aware:
-  blocks_per_region_x: 2
+  blocks_per_region_x: 6
   # Number of blocks to divide EACH allowed region into (horizontal)
   #
   # IMPORTANT: Unlike block_2d, this divides each REGION, not the whole grid!
@@ -243,7 +243,7 @@ region_aware:
   #   - Don't go too high (diminishing returns)
 
 
-  blocks_per_region_y: 2
+  blocks_per_region_y: 4
   # Number of blocks to divide EACH allowed region into (vertical)
   #
   # For regions with different aspect ratios, you may want asymmetric blocking:
