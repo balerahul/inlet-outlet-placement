@@ -38,12 +38,22 @@ placement_config: "config.yaml"
 # Set to integer for reproducible results, null for random
 random_seed: null
 
+# Visualization (optional)
+# Generate comprehensive multi-panel plots for each variant
+visualization:
+  enabled: false  # Set to true to generate plots alongside CSVs
+  # figure_size: [16, 12]  # Optional, uses config.yaml default if omitted
+
 # ============================================================================
 # Expected Output
 # ============================================================================
 # After running, you will find in ga_output/variants/:
 #   - variant_000.csv, variant_001.csv, ... variant_009.csv
 #   - lineage_log.csv (provenance information for all variants)
+#
+# If visualization.enabled: true, you will also get:
+#   - variant_000.png, variant_001.png, ... variant_009.png
+#     (comprehensive multi-panel plots with placement, metrics, heatmaps)
 #
 # Next steps:
 #   1. Evaluate all variants with your external evaluator (CFD, ML, etc.)

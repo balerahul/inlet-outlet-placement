@@ -21,6 +21,7 @@ from .engine_interface import EngineInterface
 from .mutation import mutate
 from .crossover import apply_crossover
 from .repair import repair_and_refine
+from .visualization_utils import visualize_individual
 
 
 def run_variant_mode(run_config: Dict) -> None:
@@ -116,9 +117,16 @@ def run_variant_mode(run_config: Dict) -> None:
         # Repair & refine
         child = repair_and_refine(child, placement_config_path, ga_config, rng)
 
-        # Save
+        # Save CSV
         child_path = output_root / f"variant_{i:03d}.csv"
         save_individual_to_csv(child, child_path, overwrite=overwrite)
+
+        # Generate visualization if enabled
+        viz_config = run_config.get('visualization', {})
+        if viz_config.get('enabled', False):
+            plot_path = child_path.with_suffix('.png')
+            figsize = tuple(viz_config.get('figure_size', [16, 12]))
+            visualize_individual(child, engine, plot_path, figsize)
 
         # Record lineage
         lineage_records.append(
@@ -276,9 +284,16 @@ def run_offspring_mode(run_config: Dict) -> None:
         # Repair & refine
         child = repair_and_refine(child, placement_config_path, ga_config, rng)
 
-        # Save
+        # Save CSV
         child_path = output_root / f"child_{i:03d}.csv"
         save_individual_to_csv(child, child_path, overwrite=overwrite)
+
+        # Generate visualization if enabled
+        viz_config = run_config.get('visualization', {})
+        if viz_config.get('enabled', False):
+            plot_path = child_path.with_suffix('.png')
+            figsize = tuple(viz_config.get('figure_size', [16, 12]))
+            visualize_individual(child, engine, plot_path, figsize)
 
         # Record lineage
         lineage_records.append(
@@ -304,8 +319,10 @@ def run_offspring_mode(run_config: Dict) -> None:
     if num_immigrants > 0:
         print()
         print(f"Generating {num_immigrants} fresh random immigrants...")
+        viz_config = run_config.get('visualization', {})
         immigrants = generate_immigrants(
-            num_immigrants, placement_config_path, output_root, rng
+            num_immigrants, placement_config_path, output_root, rng,
+            viz_config=viz_config, engine_interface=engine
         )
 
         # Add immigrant lineage records
@@ -385,7 +402,9 @@ def generate_immigrants(
     num_immigrants: int,
     config_path: str,
     output_root: Path,
-    rng: np.random.Generator
+    rng: np.random.Generator,
+    viz_config: Optional[Dict] = None,
+    engine_interface: Optional[EngineInterface] = None
 ) -> List[Individual]:
     """
     Generate fresh random layouts using existing placement engine.
@@ -468,6 +487,13 @@ def generate_immigrants(
 
         # Save to CSV (always allow overwrite for immigrants)
         save_individual_to_csv(immigrant, immigrant_path, overwrite=True)
+
+        # Generate visualization if enabled
+        if viz_config and viz_config.get('enabled', False) and engine_interface:
+            plot_path = immigrant_path.with_suffix('.png')
+            figsize = tuple(viz_config.get('figure_size', [16, 12]))
+            visualize_individual(immigrant, engine_interface, plot_path, figsize)
+
         immigrants.append(immigrant)
 
     return immigrants

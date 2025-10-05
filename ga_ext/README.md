@@ -309,6 +309,90 @@ child_000,ga_output/gen_002/child_000.csv,parent1.csv,parent2.csv,bandwise,jitte
 - **repair_notes**: Summary of repairs performed
 - **generation**: Generation number (0-indexed)
 
+## 📊 Visualization
+
+Generate comprehensive multi-panel plots for each generated layout, identical to those produced by the original placement system.
+
+### Enabling Visualization
+
+Add to your run configuration YAML:
+
+```yaml
+visualization:
+  enabled: true       # Generate plots alongside CSVs
+  figure_size: [16, 12]  # Optional plot size (default: uses config.yaml)
+```
+
+### Output
+
+For each individual, creates both CSV and PNG files:
+
+```
+ga_output/variants/
+├── variant_000.csv + variant_000.png
+├── variant_001.csv + variant_001.png
+├── ...
+└── lineage_log.csv
+```
+
+### Plot Panels
+
+Each visualization contains 6 comprehensive panels:
+
+1. **Main placement with band boundaries**
+   - Shows all entities color-coded by type
+   - Band boundaries displayed
+   - Separation circles (optional)
+
+2. **Coverage metrics by entity**
+   - Band coverage rates
+   - Row coverage rates
+   - Per-entity breakdown
+
+3. **Placement density heatmap**
+   - Spatial distribution visualization
+   - Identifies clustering patterns
+
+4. **Separation violations**
+   - Charts any constraint violations
+   - Empty if all constraints satisfied
+
+5. **Y-coordinate distribution histogram**
+   - Shows vertical distribution
+   - Validates stratification
+
+6. **Additional metrics**
+   - Quality scores
+   - Constraint satisfaction
+
+### Performance Note
+
+- Visualization adds **~0.5-1 second per individual**
+- Useful for:
+  - Visual tracking of evolution across generations
+  - Easy comparison of variants/offspring
+  - Debugging placement issues
+- Can be disabled (default: `enabled: false`) for faster batch generation
+
+### Example Usage
+
+```yaml
+# variant_run.yaml with visualization
+mode: variant
+input:
+  parent: output/placement_final.csv
+output:
+  root: ga_output/variants_viz
+generation:
+  variants: 10
+visualization:
+  enabled: true  # Generate plots
+```
+
+Run: `python3 ga_cli.py variant_run.yaml`
+
+Result: 10 CSVs + 10 PNG plots
+
 ## 🔧 Advanced Usage
 
 ### Custom Grid Configuration

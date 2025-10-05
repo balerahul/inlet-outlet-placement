@@ -129,28 +129,56 @@ random_seed: null
 
 
 # ============================================================================
+# VISUALIZATION (Optional)
+# ============================================================================
+# Generate comprehensive multi-panel plots for each generated layout
+#
+# visualization:
+#   enabled: false      # Set to true to generate plots alongside CSVs
+#   figure_size: [16, 12]  # Plot dimensions (optional, uses config.yaml default)
+#
+# When enabled, creates PNG files alongside each CSV:
+#   - variant_000.csv → variant_000.png
+#   - child_001.csv → child_001.png
+#   - immigrant_002.csv → immigrant_002.png
+#
+# Each plot contains 6 panels:
+#   1. Main placement with band boundaries
+#   2. Coverage metrics by entity (band and row coverage)
+#   3. Placement density heatmap
+#   4. Separation violations chart
+#   5. Y-coordinate distribution histogram
+#
+# Performance note:
+#   - Adds ~0.5-1 second per individual
+#   - Useful for visual tracking of evolution
+#   - Can be disabled for faster batch generation
+
+# visualization:
+#   enabled: false
+
+
+# ============================================================================
 # EXPECTED OUTPUT FILES
 # ============================================================================
 #
 # For VARIANT mode (output.root = "ga_output/variants", variants = 10):
 #   ga_output/variants/
-#     variant_000.csv
-#     variant_001.csv
-#     ...
-#     variant_009.csv
+#     variant_000.csv, variant_001.csv, ..., variant_009.csv
 #     lineage_log.csv       (provenance information)
+#
+#   If visualization.enabled: true, also creates:
+#     variant_000.png, variant_001.png, ..., variant_009.png
 #
 # For OFFSPRING mode (output.root = "ga_output/gen_001", children = 20, immigrants = 5):
 #   ga_output/gen_001/
-#     child_000.csv
-#     child_001.csv
-#     ...
-#     child_019.csv
-#     immigrant_000.csv
-#     immigrant_001.csv
-#     ...
-#     immigrant_004.csv
+#     child_000.csv, child_001.csv, ..., child_019.csv
+#     immigrant_000.csv, immigrant_001.csv, ..., immigrant_004.csv
 #     lineage_log.csv       (full provenance for all individuals)
+#
+#   If visualization.enabled: true, also creates:
+#     child_000.png, child_001.png, ..., child_019.png
+#     immigrant_000.png, immigrant_001.png, ..., immigrant_004.png
 
 
 # ============================================================================

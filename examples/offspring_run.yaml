@@ -60,6 +60,12 @@ placement_config: "config.yaml"
 # Set to integer for reproducible results, null for random
 random_seed: 42
 
+# Visualization (optional)
+# Generate comprehensive multi-panel plots for each child/immigrant
+visualization:
+  enabled: false  # Set to true to generate plots alongside CSVs
+  # figure_size: [16, 12]  # Optional, uses config.yaml default if omitted
+
 # ============================================================================
 # Parent Manifest Format (if using parents_manifest)
 # ============================================================================
@@ -87,9 +93,14 @@ random_seed: 42
 # Expected Output
 # ============================================================================
 # After running, you will find in ga_output/generation_001/:
-#   - child_000.csv, child_001.csv, ... child_019.csv (20 children)
+#   - child_000.csv, child_001.csv, ... child_009.csv (10 children)
 #   - immigrant_000.csv, immigrant_001.csv, ... immigrant_004.csv (5 immigrants)
 #   - lineage_log.csv (full provenance for all individuals)
+#
+# If visualization.enabled: true, you will also get:
+#   - child_000.png, child_001.png, ... child_009.png
+#   - immigrant_000.png, immigrant_001.png, ... immigrant_004.png
+#     (comprehensive multi-panel plots with placement, metrics, heatmaps)
 #
 # Next steps:
 #   1. Evaluate all layouts with your external evaluator
