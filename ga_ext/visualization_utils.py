@@ -109,8 +109,7 @@ def visualize_individual(
         grid_region=engine_interface.grid_region,
         stratification=engine_interface.stratification,
         entities=engine_interface.entities,
-        cross_entity_radius=engine_interface.cross_entity_radius,
-        anisotropy_y=engine_interface.anisotropy_y
+        cross_entity_radius=engine_interface.cross_entity_radius
     )
 
     # Compute metrics

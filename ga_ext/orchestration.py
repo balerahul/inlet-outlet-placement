@@ -149,7 +149,7 @@ def run_variant_mode(run_config: Dict) -> None:
 
     # Save lineage
     lineage_log_path = output_root / 'lineage_log.csv'
-    save_lineage_log(lineage_records, lineage_log_path)
+    save_lineage_log(lineage_records, lineage_log_path, overwrite=overwrite)
 
     # Print summary
     print()
@@ -335,7 +335,7 @@ def run_offspring_mode(run_config: Dict) -> None:
 
     # Save lineage
     lineage_log_path = output_root / 'lineage_log.csv'
-    save_lineage_log(lineage_records, lineage_log_path)
+    save_lineage_log(lineage_records, lineage_log_path, overwrite=overwrite)
 
     # Print summary
     print()
