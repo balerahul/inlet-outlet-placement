@@ -4,24 +4,39 @@
 
 ### **Primary Entry Point (Recommended)**
 ```bash
-python3 run_placement.py
+python3 main.py
 ```
 
 This is the **main script** users should run. It provides different modes:
 
 | Command | Purpose |
 |---------|---------|
-| `python3 run_placement.py --help` | for help |
-| `python3 run_placement.py --detailed` | + Quality analysis report, can be used with other options |
-| `python3 run_placement.py --visualize` | + Interactive multi-panel plots |
-| `python3 run_placement.py --trials 5` | Compare multiple random results (each with CSV + plot) |
-| `python3 run_placement.py --output-name "custom"` | Custom filename (custom.csv + custom_plot.png) can be used with other options|
-| `python3 run_placement.py  --config user-config.yaml` | --config option can be used with any of the other options to input user config.yaml file |
+| `python3 main.py --help` | for help |
+| `python3 main.py --detailed` | + Quality analysis report, can be used with other options |
+| `python3 main.py --visualize` | + Interactive multi-panel plots |
+| `python3 main.py --trials 5` | Compare multiple random results (each with CSV + plot) |
+| `python3 main.py --output-name "custom"` | Custom filename (custom.csv + custom_plot.png) can be used with other options|
+| `python3 main.py --config user-config.yaml` | --config option can be used with any of the other options to input user config.yaml file |
+
+### **Combining Options (Examples)**
+```bash
+# Detailed analysis with custom name and config
+python3 main.py --detailed --output-name "room_v2" --config custom.yaml
+
+# Visualization with custom output name
+python3 main.py --visualize --output-name "final_design"
+
+# Multiple trials with custom config and detailed analysis
+python3 main.py --trials 3 --detailed --config high_density.yaml
+
+# All options combined
+python3 main.py --detailed --visualize --output-name "complete_analysis" --config custom.yaml
+```
 
 ### **Other Entry Points**
 - `python3 run_tests.py` - Verify system works correctly
-- `python3 example_advanced_placement.py` - Full demo (may pause for plots)
-- `python3 generate_random_individual.py` - Original simple version
+- `python3 examples/example_advanced_placement.py` - Full demo (may pause for plots)
+- `python3 examples/generate_random_individual.py` - Original simple version
 
 ## 🎲 Randomization & Reproducibility Control
 
@@ -35,14 +50,14 @@ optimization:
 ### **Option 2: Use multiple trials**
 ```bash
 # Compare 10 different random configurations
-python3 run_placement.py --trials 10
+python3 main.py --trials 10
 ```
 
 This will automatically use different random seeds and show statistics.
 
 ### **Option 3: Programmatic control**
 ```python
-from config_loader import create_placement_engine_from_config, load_config
+from src.config_loader import create_placement_engine_from_config, load_config
 import yaml
 
 # Load and modify config
@@ -59,36 +74,38 @@ result = engine.place_all_entities()
 ## 📁 File Structure Overview
 
 ### **User Files (Run These)**
-- `run_placement.py` ⭐ **Main entry point**
+- `main.py` ⭐ **Main entry point**
 - `run_tests.py` - Test the system
 - `config.yaml` - Configuration parameters
 
-### **Core System (Don't need to run directly)**
-- `stratified_placement.py` - Main algorithm
-- `placement_metrics.py` - Quality analysis
-- `visualization.py` - Advanced plots
-- `config_loader.py` - Configuration handling
+### **Core System (src/ directory - Don't need to run directly)**
+- `src/stratified_placement.py` - Main algorithm
+- `src/placement_metrics.py` - Quality analysis
+- `src/visualization.py` - Advanced plots
+- `src/config_loader.py` - Configuration handling
+- `src/placement_exporter.py` - Export system
+- `src/validate_config.py` - Configuration validation
 
-### **Documentation & Examples**
-- `CLAUDE.md` - Comprehensive documentation  
+### **Examples (examples/ directory)**
+- `examples/example_advanced_placement.py` - Full demo
+- `examples/generate_random_individual.py` - Original simple version
+
+### **Documentation**
+- `CLAUDE.md` - Comprehensive documentation
 - `placement_plan.md` - Algorithm methodology
-- `example_advanced_placement.py` - Full demo
 - `README_USAGE.md` - This quick start guide
-
-### **Legacy**
-- `generate_random_individual.py` - Original simple version
 
 ## 🎯 Common Use Cases
 
 ### **1. Quick placement with default settings**
 ```bash
-python3 run_placement.py
+python3 main.py
 # Generates: placement_TIMESTAMP.csv + placement_TIMESTAMP_plot.png
 ```
 
 ### **2. Analyze placement quality**
 ```bash
-python3 run_placement.py --detailed
+python3 main.py --detailed
 # Generates: CSV + plot + detailed quality analysis report
 ```
 
@@ -102,12 +119,12 @@ optimization:
 
 Then run:
 ```bash
-python3 run_placement.py
+python3 main.py
 ```
 
 ### **4. Compare multiple random configurations**
 ```bash
-python3 run_placement.py --trials 10
+python3 main.py --trials 10
 # Generates: 10 CSV files + 10 plot files + comparison statistics
 ```
 
@@ -131,13 +148,13 @@ python3 run_tests.py
 ### **File Generation Commands**
 ```bash
 # Basic run → generates CSV + plot with timestamp names
-python3 run_placement.py
+python3 main.py
 
-# Custom names → generates room_config_v2.csv + room_config_v2_plot.png  
-python3 run_placement.py --output-name "room_config_v2"
+# Custom names → generates room_config_v2.csv + room_config_v2_plot.png
+python3 main.py --output-name "room_config_v2"
 
 # Multiple trials → generates 5 CSV files + 5 plot files
-python3 run_placement.py --trials 5
+python3 main.py --trials 5
 ```
 
 ### **Generated Files**
@@ -185,7 +202,7 @@ Each entity gets a unique name following the pattern: `{type}_x{x}_y{y}`
 
 - **Matplotlib hangs**: Close plot windows manually, or use command-line modes
 - **Missing dependencies**: Run `pip3 install matplotlib PyYAML`
-- **Configuration errors**: Run `python3 config_loader.py` to validate
+- **Configuration errors**: Run `python3 -c "from src.validate_config import ConfigValidator; validator = ConfigValidator(); validator.validate_config_file('config.yaml')"` to validate
 - **Import errors**: Make sure you're in the correct directory
 
 ## 📊 Expected Output
@@ -211,9 +228,9 @@ The system places HVAC components optimally across grid bands while maintaining 
 #!/bin/bash
 # Example simulation pipeline script
 
-# Generate multiple placement configurations  
+# Generate multiple placement configurations
 for i in {1..10}; do
-    python3 run_placement.py --output-name "config_$i"
+    python3 main.py --output-name "config_$i"
 done
 
 # Use in simulation solver (pseudo-code)
@@ -225,16 +242,16 @@ done
 ### **Python Integration Example**
 
 ```python
-from placement_exporter import create_placement_files
-from config_loader import create_placement_engine_from_config
+from src.placement_exporter import create_placement_file
+from src.config_loader import create_placement_engine_from_config
 
-# Generate placement 
+# Generate placement
 engine = create_placement_engine_from_config()
 result = engine.place_all_entities()
 
 # Export for simulation
 csv_file = create_placement_file(
-    result, engine.grid_region, 
+    result, engine.grid_region,
     output_name="simulation_config"
 )
 
