@@ -63,7 +63,7 @@ random_seed: 42
 # Visualization (optional)
 # Generate comprehensive multi-panel plots for each child/immigrant
 visualization:
-  enabled: false  # Set to true to generate plots alongside CSVs
+  enabled: true  # Set to true to generate plots alongside CSVs
   # figure_size: [16, 12]  # Optional, uses config.yaml default if omitted
 
 # ============================================================================
