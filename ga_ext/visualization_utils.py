@@ -5,8 +5,13 @@ Provides functions to convert GA Individuals to visualization format
 and generate comprehensive multi-panel plots.
 """
 
+import matplotlib
+# Use non-interactive backend to prevent plot windows from popping up
+matplotlib.use('Agg')
+
 from pathlib import Path
 from typing import Dict, Any, Tuple
+import matplotlib.pyplot as plt
 
 from src.stratified_placement import (
     PlacementResult, EntityType, GridCell
@@ -129,5 +134,8 @@ def visualize_individual(
         figsize=figsize,
         save_path=str(output_path)
     )
+
+    # Close all figures to free memory and prevent display
+    plt.close('all')
 
     print(f"  Saved visualization: {output_path}")
